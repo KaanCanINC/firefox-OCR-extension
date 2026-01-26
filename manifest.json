@@ -1,0 +1,45 @@
+{
+  "manifest_version": 2,
+  "name": "OCR Extension",
+  "version": "1.0",
+  "description": "Extract text from selected areas using OCR",
+  "permissions": [
+    "activeTab",
+    "clipboardWrite",
+    "storage",
+    "notifications",
+    "tabs"
+  ],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "3845b6910c698db7453a069093927e17bcc46ab5@temporary-addon"
+    }
+  },
+  "browser_action": {
+    "default_title": "OCR Extractor"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "dist/content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "background": {
+    "scripts": [
+      "dist/background.js"
+    ]
+  },
+  "icons": {
+    "48": "icons/icon-48.png",
+    "96": "icons/icon-96.png"
+  },
+  "content_security_policy": "script-src 'self' 'unsafe-eval' https://unpkg.com https://tessdata.projectnaptha.com; object-src 'self';",
+  "web_accessible_resources": [
+    "settings.html"
+  ]
+}
