@@ -3,7 +3,7 @@
  * Handles text recognition from canvas images
  */
 
-import { createWorker } from 'tesseract.js';
+import { createWorker } from "tesseract.js";
 
 /**
  * Performs OCR on a canvas element
@@ -12,13 +12,16 @@ import { createWorker } from 'tesseract.js';
  */
 export async function performOCR(canvas) {
   try {
-    const worker = await createWorker('eng');
-    const { data: { text } } = await worker.recognize(canvas);
+    const worker = await createWorker("eng");
+
+    const {
+      data: { text },
+    } = await worker.recognize(canvas);
     await worker.terminate();
 
-    return text ? text.trim() : '';
+    return text ? text.trim() : "";
   } catch (error) {
-    console.error('OCR processing failed:', error);
+    console.error("OCR processing failed:", error);
     throw error;
   }
 }

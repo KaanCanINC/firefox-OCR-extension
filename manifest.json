@@ -12,7 +12,9 @@
   ],
   "browser_specific_settings": {
     "gecko": {
-      "id": "3845b6910c698db7453a069093927e17bcc46ab5@temporary-addon"
+      "data_collection_permissions": {
+        "required": ["none"]
+      }
     }
   },
   "browser_action": {
@@ -35,11 +37,16 @@
     ]
   },
   "icons": {
-    "48": "icons/icon-48.png",
-    "96": "icons/icon-96.png"
+    "16": "icons/icon16.jpeg",
+    "32": "icons/icon32.jpeg",
+    "48": "icons/icon48.jpeg",
+    "128": "icons/icon128.jpeg"
   },
-  "content_security_policy": "script-src 'self' 'unsafe-eval' https://unpkg.com https://tessdata.projectnaptha.com; object-src 'self';",
+  "content_security_policy": "script-src 'self'; object-src 'self';",
   "web_accessible_resources": [
-    "settings.html"
+    "settings.html",
+    "dist/libraries/tesseract/worker.min.js",
+    "dist/libraries/tesseract/tesseract.min.js",
+    "dist/libraries/tesseract/tesseract-core.wasm.js"
   ]
 }

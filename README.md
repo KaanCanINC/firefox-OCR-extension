@@ -1,4 +1,102 @@
-# Firefox OCR Extension
+# OCR Extension — Source & Build Instructions
+
+This repository contains the full source code for the OCR Extension and the exact steps a reviewer can use to reproduce the published build.
+
+## What is included
+
+- `src/` — original, unminified source files (JavaScript modules, UI files)
+- `package.json`, `pnpm-lock.yaml` (if present), `webpack.config.js` — build configuration
+- `dist/` — build outputs (generated, included for convenience)
+- `build.sh` — reproducible build script
+- `prepare-source.sh` — helper that packages the source for reviewer
+
+Third-party libraries (e.g. `tesseract.js`) are managed via `package.json` and are not considered proprietary source of the extension.
+
+---
+
+## Environment requirements
+
+- Operating system: Linux, macOS, or Windows (tested on Ubuntu 22.04)
+- Node.js: 18.x (LTS) or newer
+- npm: 9.x or newer (or `pnpm` if you prefer)
+- `zip` or `tar` utility available for packaging (used by `prepare-source.sh`)
+
+Recommended: install Node via nvm:
+
+```bash
+nvm install 18
+nvm use 18
+```
+
+## Build instructions (step-by-step)
+
+1. Install dependencies
+
+```bash
+# from repository root
+npm ci
+# or: pnpm install
+```
+
+2. Run the production build
+
+```bash
+npm run build
+```
+
+3. Result
+
+- The `dist/` directory will contain the generated extension bundles that are packaged for distribution.
+
+## Build script
+
+Use `build.sh` to run the full reproducible build (installs and builds):
+
+```bash
+./build.sh
+```
+
+`build.sh` runs `npm ci` and `npm run build` and exits on error.
+
+## Preparing the source package for reviewers
+
+Run `prepare-source.sh` to create `source-for-review.zip` (or a tarball) containing the non-generated source files a reviewer needs:
+
+```bash
+./prepare-source.sh
+```
+
+The produced archive includes:
+
+- `src/` (unminified source)
+- `package.json`, `pnpm-lock.yaml` (if present), `webpack.config.js`
+- `build.sh`, `prepare-source.sh`, `README.md`
+
+It does not include `node_modules/` by default. The reviewer can run `npm ci` and then `./build.sh` to reproduce the `dist/` outputs.
+
+## Tooling and versions used by this project
+
+- `webpack` (used via `npm run build`) — see `devDependencies` in `package.json`
+- `tesseract.js` (OCR library) — installed from npm; worker/core files are bundled into `dist/libraries/tesseract/` and referenced from extension-local URLs.
+
+If you need exact versions used by the last successful build, see `package.json` and `pnpm-lock.yaml` / `package-lock.json`.
+
+## Reviewer notes (copy into AMO notes)
+
+We used a bundler (`webpack`) and minification for `dist/` artifacts. The original unminified sources are provided in `src/`.
+
+To reproduce locally:
+
+1. `npm ci`
+2. `npm run build`
+
+If you require a packaged source upload, run `./prepare-source.sh` and attach `source-for-review.zip`.
+
+If you need the add-on to run on a specific test site that requires credentials, provide me the target and I will add reviewer credentials here.
+
+---
+
+If anything in these instructions should be adjusted for your environment or the AMO reviewer process, tell me and I will update the files accordingly.# Firefox OCR Extension
 
 [![Build Status](https://img.shields.io/badge/build-passed-brightgreen)](https://github.com/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
