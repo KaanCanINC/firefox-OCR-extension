@@ -78,6 +78,10 @@ const GLOBAL_SETTINGS = {
     floating_button_mode: 'blacklist', // 'blacklist' or 'whitelist'
     floating_button_blacklist: [],
     floating_button_whitelist: [],
+    
+    // Fallbacks just in case
+    profiles: {},
+    
     enable_multiselect: false,
     
     // --- Floating Panel Visibility Settings (Global) ---
@@ -104,7 +108,13 @@ export const CURRENT_VERSION = 1;
 
 export async function getSettings(keys = null) {
     const data = await loadData();
-    const activeId = data.global.active_profile_id;
+    const activeId = data.global && data.global.active_profile_id ? data.global.active_profile_id : 'default';
+    
+    // Ensure profiles object exists
+    if (!data.profiles) {
+        data.profiles = { 'default': { ...DEFAULT_PROFILE } };
+    }
+    
     // Ensure profile exists, fallback to default if corrupt
     let profile = data.profiles[activeId];
 
@@ -420,8 +430,8 @@ async function loadData() {
     const res = await browser.storage.local.get(STORAGE_KEY);
     let data = res[STORAGE_KEY];
     
-    // Initialize if empty
-    if (!data.profiles) {
+    // Initialize if empty or corrupt
+    if (!data || !data.profiles) {
         data = {
             global: { ...GLOBAL_SETTINGS },
             profiles: {
@@ -429,18 +439,13 @@ async function loadData() {
                 'manhwa': { ...MANHWA_PROFILE }
             }
         };
+        // Persist default structure immediately
+        await browser.storage.local.set({ [STORAGE_KEY]: data });
     }
+    
     // Check if manwha profile exists, add it if this is a fresh update
     if (!data.profiles['manhwa'] && !data.profiles['manhwa_v1']) {
-        // Only if it doesn't conflict or if user hasn't explicitly deleted? 
-        // For simplicity, just ensure it exists on load if missing.
         data.profiles['manhwa'] = { ...MANHWA_PROFILE };
-        // We modified data, should save back?
-        // Let's optimize: only save if we created it.
-        // Actually, loadData is usually read-only. We should return it and let caller modify if needed.
-        // But for initialization, maybe better to save.
-        // We'll rely on the fact that if getSettings is called, it might use this.
-        // To persist, we need to save.
         await browser.storage.local.set({ [STORAGE_KEY]: data });
     }
     return data;
