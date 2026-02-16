@@ -1,0 +1,23 @@
+# Node modules
+node_modules/
+npm-debug.log
+yarn-error.log
+pnpm-debug.log*
+
+# Build artifacts
+dist/
+*.zip
+*.xpi
+
+# Environment variables
+.env
+.env.local
+
+# Editor directories
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Temporary files
+test_advanced_pipeline.mjs

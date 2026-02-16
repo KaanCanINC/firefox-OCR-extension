@@ -4,7 +4,7 @@
  */
 
 import { createIconButton } from './createButton.js';
-import { openSettingsPanel } from '../settings.js';
+import { openSettingsPanel } from '../../settings/main.js';
 
 export function createSettingsButton() {
   const button = createIconButton('⚙', '32px', '32px');

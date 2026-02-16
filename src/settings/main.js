@@ -9,9 +9,9 @@ import {
     loadRules, saveSettings, getSettings, 
     getProfileList, createProfile, deleteProfile, setActiveProfile, resetProfile,
     importSettings, exportSettings, resetSystem, renameProfile
-} from "./utils/settingsManager.js";
-import { TESSERACT_LANGUAGES } from "./utils/languages.js";
-import { TRANSLATION_LANGUAGES } from "./utils/translationLanguages.js";
+} from "../utils/storage.js";
+import { TESSERACT_LANGUAGES } from "../utils/languages.js";
+import { TRANSLATION_LANGUAGES } from "../utils/translationLanguages.js";
 
 // --- State Management ---
 let currentState = {

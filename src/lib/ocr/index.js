@@ -6,10 +6,10 @@
 import { createWorker } from "tesseract.js";
 import { processImage } from "./pipelines/image/pipeline.js";
 import { processText } from "./pipelines/text/pipeline.js";
-import { getEffectiveRules, getSettings } from "./utils/settingsManager.js";
-import { ocrConfig } from "./utils/ocrConfig.js";
-import { debugViewer } from "./ui/debugViewer.js";
-import { getSafeImageData, createSafeCanvas } from "./utils/imageUtils.js";
+import { getEffectiveRules, getSettings } from "../../utils/storage.js";
+import { ocrConfig } from "./config.js";
+import { debugViewer } from "../../ui/debugger/index.js";
+import { getSafeImageData, createSafeCanvas } from "../../utils/image.js";
 
 /**
  * Performs OCR and all pipeline stages

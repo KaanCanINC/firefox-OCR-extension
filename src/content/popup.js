@@ -3,17 +3,17 @@
  * Handles displaying OCR results popup with progress and controls
  */
 
-import { createButton, createPrimaryButton, createIconButton } from './buttons/createButton.js';
-import { createButtonHandlers, createFeedbackHandler } from './buttons/buttonFunctions.js';
-import { createLowerCaseButton } from './buttons/lowerCase.js';
-import { createUpperCaseButton } from './buttons/upperCase.js';
-import { createSingleLineButton } from './buttons/singleLine.js';
-import { createManhwaModeButton } from './buttons/manhwaMode.js';
-import { createCopyButton } from './buttons/copy.js';
-import { createTranslateButton } from './buttons/translate.js';
-import { createCloseButton } from './buttons/close.js';
-import { createSettingsButton } from './buttons/settings.js';
-import { getSettings } from './utils/settingsManager.js';
+import { createButton, createPrimaryButton, createIconButton } from '../ui/buttons/createButton.js';
+import { createButtonHandlers, createFeedbackHandler } from '../ui/buttons/buttonFunctions.js';
+import { createLowerCaseButton } from '../ui/buttons/lowerCase.js';
+import { createUpperCaseButton } from '../ui/buttons/upperCase.js';
+import { createSingleLineButton } from '../ui/buttons/singleLine.js';
+import { createManhwaModeButton } from '../ui/buttons/manhwaMode.js';
+import { createCopyButton } from '../ui/buttons/copy.js';
+import { createTranslateButton } from '../ui/buttons/translate.js';
+import { createCloseButton } from '../ui/buttons/close.js';
+import { createSettingsButton } from '../ui/buttons/settings.js';
+import { getSettings } from '../utils/storage.js';
 
 export function showPopup(state, text) {
   console.log("Showing popup with state:", state, "text:", text);
@@ -150,12 +150,12 @@ export function showPopup(state, text) {
   
   // Save on change and re-run OCR
   langSelectSmall.addEventListener('change', async () => {
-    const { saveSettings } = await import('./utils/settingsManager.js');
+    const { saveSettings } = await import('../utils/storage.js');
     await saveSettings({ tess_lang: langSelectSmall.value });
     
     // Re-run OCR if data is available
     if (popup._ocrData) {
-      const { performOCR } = await import('./ocr.js');
+      const { performOCR } = await import('../lib/ocr/index.js');
       const { img, selections, dpr } = popup._ocrData;
       
       // Show loading state

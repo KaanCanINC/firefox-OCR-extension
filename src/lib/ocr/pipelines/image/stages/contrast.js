@@ -1,4 +1,4 @@
-import { getSafeImageData } from '../../../utils/imageUtils.js';
+import { getSafeImageData } from '../../../../../utils/image.js';
 
 /**
  * Contrast Enhancement Stage

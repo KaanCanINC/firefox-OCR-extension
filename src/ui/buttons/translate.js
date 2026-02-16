@@ -4,7 +4,7 @@
  */
 
 import { createButton } from './createButton.js';
-import { getSettings } from '../utils/settingsManager.js';
+import { getSettings } from '../../utils/storage.js';
 
 
 export function createTranslateButton(textarea) {

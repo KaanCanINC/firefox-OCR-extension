@@ -1,4 +1,4 @@
-import { getSettings, saveSettings } from './settingsManager.js';
+import { getSettings, saveSettings } from '../../utils/storage.js';
 
 const DEFAULT_CONFIG = {
     tess_psm: '3', // Default to Auto (3) or specific block

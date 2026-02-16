@@ -2,9 +2,9 @@ const path = require('path');
 
 module.exports = {
   entry: {
-    content: './src/content.js',
-    background: './src/background.js',
-    settings_page: './src/entry_settings.js'
+    content: './src/content/index.js',
+    background: './src/background/index.js',
+    settings_page: './src/settings/index.js'
   },
   output: {
     path: path.resolve(__dirname, 'dist'),
@@ -27,7 +27,7 @@ module.exports = {
       "tls": false
     },
     alias: {
-      "got": path.resolve(__dirname, 'src/utils/got-shim.js')
+      "got": path.resolve(__dirname, 'src/lib/translate/shim.js')
     }
   }
 };

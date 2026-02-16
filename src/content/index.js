@@ -1,9 +1,9 @@
-import { performOCR } from './ocr.js';
+import { performOCR } from '../lib/ocr/index.js';
 import { showPopup, updatePopup } from './popup.js';
 import { createOverlay, updateOverlay, removeOverlay } from './overlay.js';
-import { openSettingsPanel } from './settings.js';
-import { createFloatingSettingsButton } from './buttons/settings.js';
-import { getSettings } from './utils/settingsManager.js';
+import { openSettingsPanel } from '../settings/main.js';
+import { createFloatingSettingsButton } from '../ui/buttons/settings.js';
+import { getSettings } from '../utils/storage.js';
 
 console.log('Content script loaded');
 

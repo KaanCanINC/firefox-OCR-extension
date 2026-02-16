@@ -1,5 +1,5 @@
-import { dictionaryManager } from '../../../utils/dictionary.js';
-import { findClosestMatch } from '../../../utils/levenshtein.js';
+import { dictionaryManager } from '../../../../../utils/dictionary.js';
+import { findClosestMatch } from '../../../../../utils/levenshtein.js';
 
 /**
  * Dictionary Correction Stage
