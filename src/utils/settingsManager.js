@@ -42,6 +42,12 @@ const DEFAULT_PROFILE = {
     reconstruct_merge: true,
     reconstruct_stabilize: true,
 
+    // --- Translation ---
+    trans_src: 'auto',
+    trans_target: 'en',
+    trans_auto: false,
+    trans_style: 'below', // 'replace', 'below', 'side'
+
     // --- UI / UX ---
     debug_mode: false,
     popup_hidden_buttons: [],
@@ -72,7 +78,17 @@ const GLOBAL_SETTINGS = {
     floating_button_mode: 'blacklist', // 'blacklist' or 'whitelist'
     floating_button_blacklist: [],
     floating_button_whitelist: [],
-    enable_multiselect: false
+    enable_multiselect: false,
+    
+    // --- Floating Panel Visibility Settings (Global) ---
+    floating_visible_preprocess: true,
+    floating_visible_cleaning: true,
+    floating_visible_findreplace: true,
+    floating_visible_chardel: true,
+    floating_visible_profiles: true,
+    floating_visible_language: true,
+    floating_visible_translation: true,
+    floating_visible_ui: true
 };
 
 // Structure on disk:

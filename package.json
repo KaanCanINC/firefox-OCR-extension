@@ -11,6 +11,7 @@
     "webpack-cli": "^5.1.4"
   },
   "dependencies": {
+    "bing-translate-api": "^4.2.0",
     "tesseract.js": "^7.0.0"
   }
 }

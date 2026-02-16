@@ -10,5 +10,24 @@ module.exports = {
     path: path.resolve(__dirname, 'dist'),
     filename: '[name].js'
   },
-  mode: 'production'
+  mode: 'production',
+  resolve: {
+    fallback: {
+      "stream": false,
+      "buffer": false,
+      "util": false,
+      "url": false,
+      "https": false,
+      "http": false,
+      "zlib": false,
+      "os": false,
+      "child_process": false,
+      "fs": false,
+      "net": false,
+      "tls": false
+    },
+    alias: {
+      "got": path.resolve(__dirname, 'src/utils/got-shim.js')
+    }
+  }
 };

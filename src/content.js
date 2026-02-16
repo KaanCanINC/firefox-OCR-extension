@@ -45,7 +45,12 @@ async function updateFloatingButton() {
     if (shouldShow) {
         if (!existingBtn) {
             try {
-                createFloatingSettingsButton();
+                // Ensure document body is available
+                if (document.body) {
+                    createFloatingSettingsButton();
+                } else {
+                    document.addEventListener('DOMContentLoaded', () => createFloatingSettingsButton());
+                }
             } catch (e) { console.warn('Button creation failed', e); }
         } else {
             existingBtn.style.display = 'flex';
@@ -286,7 +291,21 @@ async function finishSelection() {
 
         const img = new Image();
         // img.crossOrigin = "anonymous"; // REMOVED: Data URLs from captureVisibleTab are safe; setting clean origin explicitly might trigger CORS checks that fail on data: scheme in some browsers (Firefox)
+        // With recent browser updates, sometimes setting nothing is fine for extension data URLs, but sometimes it taints.
+        // Let's try NOT setting it, but if it fails, maybe we need to be in background.
+        // ACTUALLY, strict taint checks are active.
+        // The safest way is to crop in background or use createImageBitmap (if supported and safe).
+        
         img.src = resp.dataUrl;
+        await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; });
+
+        // Process all selections using createImageBitmap which sometimes bypasses strict taint if source is opaque but safe
+        // OR better: handle cropping in background.
+        // But for now, let's try a workaround: fetching the blob from the data URL.
+        
+        const blob = await fetch(resp.dataUrl).then(r => r.blob());
+        const objectURL = URL.createObjectURL(blob);
+        img.src = objectURL;
         await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; });
 
         // Process all selections
@@ -328,6 +347,13 @@ async function finishSelection() {
         }
 
         updatePopup(popup, combinedText, combinedOriginal);
+        
+        // Store image and selections for re-OCR when language changes
+        popup._ocrData = {
+            img: img,
+            selections: selections,
+            dpr: dpr
+        };
 
     } catch (e) {
         console.error('OCR Batch failed:', e);

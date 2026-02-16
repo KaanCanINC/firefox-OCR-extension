@@ -10,6 +10,7 @@ import { createUpperCaseButton } from './buttons/upperCase.js';
 import { createSingleLineButton } from './buttons/singleLine.js';
 import { createManhwaModeButton } from './buttons/manhwaMode.js';
 import { createCopyButton } from './buttons/copy.js';
+import { createTranslateButton } from './buttons/translate.js';
 import { createCloseButton } from './buttons/close.js';
 import { createSettingsButton } from './buttons/settings.js';
 import { getSettings } from './utils/settingsManager.js';
@@ -115,8 +116,88 @@ export function showPopup(state, text) {
   controls.style.marginBottom = '8px';
 
   const langSelectSmall = document.createElement('select');
-  ['Korean','English','Turkish','Chinese'].forEach(opt=>{ const o=document.createElement('option'); o.value=o.textContent=opt; langSelectSmall.appendChild(o); });
+  const langMap = {
+    'English': 'eng',
+    'Turkish': 'tur',
+    'Korean': 'kor',
+    'Chinese': 'chi_sim',
+    'Japanese': 'jpn',
+    'Spanish': 'spa',
+    'French': 'fra',
+    'German': 'deu',
+    'Italian': 'ita',
+    'Portuguese': 'por',
+    'Russian': 'rus',
+    'Arabic': 'ara'
+  };
+  
+  // Populate language options
+  Object.keys(langMap).forEach(name => {
+    const o = document.createElement('option');
+    o.value = langMap[name];
+    o.textContent = name;
+    langSelectSmall.appendChild(o);
+  });
+  
   Object.assign(langSelectSmall.style, { background: '#0b1220', color: '#e6eef8', border: '1px solid #25303a', borderRadius: '6px', padding: '6px', fontSize: '12px' });
+  
+  // Load current language setting
+  getSettings(['tess_lang']).then(settings => {
+    if (settings.tess_lang) {
+      langSelectSmall.value = settings.tess_lang;
+    }
+  });
+  
+  // Save on change and re-run OCR
+  langSelectSmall.addEventListener('change', async () => {
+    const { saveSettings } = await import('./utils/settingsManager.js');
+    await saveSettings({ tess_lang: langSelectSmall.value });
+    
+    // Re-run OCR if data is available
+    if (popup._ocrData) {
+      const { performOCR } = await import('./ocr.js');
+      const { img, selections, dpr } = popup._ocrData;
+      
+      // Show loading state
+      textarea.disabled = true;
+      textarea.value = 'Re-analyzing with new language...';
+      
+      try {
+        let combinedText = '';
+        let combinedOriginal = '';
+        
+        for (const sel of selections) {
+          const sx = Math.round(sel.x * dpr);
+          const sy = Math.round(sel.y * dpr);
+          const sWidth = Math.round(sel.width * dpr);
+          const sHeight = Math.round(sel.height * dpr);
+          
+          if (sx + sWidth > img.width || sy + sHeight > img.height) continue;
+          
+          const canvas = document.createElement('canvas');
+          canvas.width = sWidth;
+          canvas.height = sHeight;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, canvas.width, canvas.height);
+          
+          const { text, originalText } = await performOCR(canvas);
+          
+          if (combinedText) combinedText += '\n\n';
+          combinedText += text;
+          
+          if (combinedOriginal) combinedOriginal += '\n\n';
+          combinedOriginal += originalText;
+        }
+        
+        textarea.value = combinedText;
+        textarea.disabled = false;
+      } catch (e) {
+        console.error('Re-OCR failed:', e);
+        textarea.value = 'Error re-analyzing: ' + e.message;
+        textarea.disabled = false;
+      }
+    }
+  });
 
   const settingsBtn = createSettingsButton();
   Object.assign(settingsBtn.style, { width: '34px', height: '34px', padding: '6px', borderRadius: '6px', background: '#374151' });
@@ -166,6 +247,9 @@ export function showPopup(state, text) {
 
   const copyBtn = createCopyButton(textarea, copyToClipboard);
   buttonContainer.appendChild(copyBtn);
+  
+  const translateBtn = createTranslateButton(textarea);
+  buttonContainer.appendChild(translateBtn);
 
   // Apply visibility settings
   getSettings(['popup_hidden_buttons']).then(settings => {
@@ -175,6 +259,7 @@ export function showPopup(state, text) {
       if (hidden.includes('Single Line')) singleBtn.style.display = 'none';
       if (hidden.includes('Manhwa Mode')) manhwaBtn.style.display = 'none';
       if (hidden.includes('Copy')) copyBtn.style.display = 'none';
+      if (hidden.includes('Translate')) translateBtn.style.display = 'none';
   });
 
   const closeBtn = createCloseButton(popup);
@@ -194,6 +279,7 @@ export function showPopup(state, text) {
     upperBtn.addEventListener('click', async () => { if (shouldCopyFor('Uppercase')) { if (await copyToClipboard(textarea.value)) showCopiedToast(); } });
     singleBtn.addEventListener('click', async () => { if (shouldCopyFor('Single Line')) { if (await copyToClipboard(textarea.value)) showCopiedToast(); } });
     manhwaBtn.addEventListener('click', async () => { if (shouldCopyFor('Manhwa Mode')) { if (await copyToClipboard(textarea.value)) showCopiedToast(); } });
+    translateBtn.addEventListener('click', async () => { if (shouldCopyFor('Translate')) { if (await copyToClipboard(textarea.value)) showCopiedToast(); } });
 
   footer.appendChild(buttonContainer);
   popup.appendChild(footer);

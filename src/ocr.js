@@ -45,6 +45,7 @@ export async function performOCR(canvas, options = {}) {
     // 2. Load Configuration
     await ocrConfig.load();
     const settings = await getSettings([
+        'tess_lang',
         'preprocess_resize', 'preprocess_grayscale', 'preprocess_contrast', 
         'preprocess_blur', 'preprocess_threshold', 'preprocess_morphology', 'preprocess_borders',
         'debug_mode',
@@ -126,8 +127,9 @@ export async function performOCR(canvas, options = {}) {
     }
 
     // 5. Run Tesseract with Config
-    // Initialize worker with explicit language (usually loaded from config, but default eng for now)
-    const worker = await createWorker("eng");
+    const lang = options.lang || settings.tess_lang || 'eng';
+    // Initialize worker with explicit language
+    const worker = await createWorker(lang);
     
     // Determine PSM
     let psm = 3; // Default
