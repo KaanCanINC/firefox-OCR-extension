@@ -8,8 +8,25 @@
     "clipboardWrite",
     "storage",
     "notifications",
-    "tabs"
+    "tabs",
+    "contextMenus"
   ],
+  "commands": {
+    "activate-ocr": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+S",
+        "mac": "Command+Shift+S"
+      },
+      "description": "Activate OCR Selection"
+    },
+    "open-settings": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+O",
+        "mac": "Command+Shift+O"
+      },
+      "description": "Open OCR Settings"
+    }
+  },
   "browser_specific_settings": {
     "gecko": {
       "data_collection_permissions": {
@@ -19,6 +36,10 @@
   },
   "browser_action": {
     "default_title": "OCR Extractor"
+  },
+  "options_ui": {
+    "page": "settings.html",
+    "open_in_tab": true
   },
   "content_scripts": [
     {

@@ -1,85 +1,78 @@
 /**
  * Overlay Module
- * Handles creating and managing the selection overlay
+ * Handles creating and managing the selection overlay (Canvas based)
  */
 
-let topOverlay, bottomOverlay, leftOverlay, rightOverlay;
+let overlayCanvas = null;
+let ctx = null;
 
 export function createOverlay() {
-  // Remove existing overlays
   removeOverlay();
 
-  // Create four overlay divs, initially covering the whole screen
-  topOverlay = document.createElement('div');
-  topOverlay.style.position = 'fixed';
-  topOverlay.style.top = '0';
-  topOverlay.style.left = '0';
-  topOverlay.style.width = '100%';
-  topOverlay.style.height = window.innerHeight + 'px';
-  topOverlay.style.backgroundColor = 'rgba(213, 224, 58, 0.5)';
-  topOverlay.style.zIndex = '999998';
-  document.body.appendChild(topOverlay);
+  overlayCanvas = document.createElement('canvas');
+  overlayCanvas.style.position = 'fixed';
+  overlayCanvas.style.top = '0';
+  overlayCanvas.style.left = '0';
+  overlayCanvas.style.width = '100vw'; // Use vw/vh to cover viewport
+  overlayCanvas.style.height = '100vh';
+  overlayCanvas.style.zIndex = '999998'; // High z-index
+  overlayCanvas.style.cursor = 'crosshair';
+  
+  // Interaction blocking: This canvas covers everything, so clicks go here.
+  // We handle selection logic on this canvas.
+  
+  document.body.appendChild(overlayCanvas);
+  
+  // Set resolution
+  overlayCanvas.width = window.innerWidth;
+  overlayCanvas.height = window.innerHeight;
 
-  bottomOverlay = document.createElement('div');
-  bottomOverlay.style.position = 'fixed';
-  bottomOverlay.style.bottom = '0';
-  bottomOverlay.style.left = '0';
-  bottomOverlay.style.width = '100%';
-  bottomOverlay.style.height = '0';
-  bottomOverlay.style.backgroundColor = 'rgba(213, 224, 58, 0.5)';
-  bottomOverlay.style.zIndex = '999998';
-  document.body.appendChild(bottomOverlay);
-
-  leftOverlay = document.createElement('div');
-  leftOverlay.style.position = 'fixed';
-  leftOverlay.style.top = '0';
-  leftOverlay.style.left = '0';
-  leftOverlay.style.width = window.innerWidth + 'px';
-  leftOverlay.style.height = window.innerHeight + 'px';
-  leftOverlay.style.backgroundColor = 'rgba(213, 224, 58, 0.5)';
-  leftOverlay.style.zIndex = '999998';
-  document.body.appendChild(leftOverlay);
-
-  rightOverlay = document.createElement('div');
-  rightOverlay.style.position = 'fixed';
-  rightOverlay.style.top = '0';
-  rightOverlay.style.right = '0';
-  rightOverlay.style.width = '0';
-  rightOverlay.style.height = window.innerHeight + 'px';
-  rightOverlay.style.backgroundColor = 'rgba(213, 224, 58, 0.5)';
-  rightOverlay.style.zIndex = '999998';
-  document.body.appendChild(rightOverlay);
+  ctx = overlayCanvas.getContext('2d');
+  drawOverlay(); // Initial draw (full dim)
+  
+  return overlayCanvas;
 }
 
-export function updateOverlay(startX, startY, endX, endY) {
-  if (!topOverlay || startX === undefined) return;
-  const width = Math.abs(endX - startX);
-  const height = Math.abs(endY - startY);
-  const left = Math.min(startX, endX);
-  const top = Math.min(startY, endY);
+export function updateOverlay(currentSelection, pastSelections = []) {
+  if (!ctx || !overlayCanvas) return;
+  
+  // Clear and fill with dim color
+  ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.35)'; // Darker dim for better contrast
+  ctx.fillRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+  
+  // Cut out holes for past selections
+  pastSelections.forEach(sel => {
+    ctx.clearRect(sel.x, sel.y, sel.width, sel.height);
+    // Draw border for visibility
+    ctx.strokeStyle = '#3b82f6'; // Blue for stored
+    ctx.lineWidth = 2;
+    ctx.strokeRect(sel.x, sel.y, sel.width, sel.height);
+  });
+  
+  // Cut out hole for current selection
+  if (currentSelection) {
+    const { x, y, width, height } = currentSelection;
+    ctx.clearRect(x, y, width, height);
+    // Draw border
+    ctx.strokeStyle = '#ef4444'; // Red for active
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x, y, width, height);
+    
+    // Optional: draw dashed line or guide
+  }
+}
 
-  topOverlay.style.height = top + 'px';
-  bottomOverlay.style.height = (window.innerHeight - top - height) + 'px';
-  leftOverlay.style.width = left + 'px';
-  leftOverlay.style.top = top + 'px';
-  leftOverlay.style.height = height + 'px';
-  rightOverlay.style.width = (window.innerWidth - left - width) + 'px';
-  rightOverlay.style.top = top + 'px';
-  rightOverlay.style.height = height + 'px';
+function drawOverlay() {
+    if (!ctx) return;
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+    ctx.fillRect(0, 0, overlayCanvas.width, overlayCanvas.height);
 }
 
 export function removeOverlay() {
-  try {
-    if (topOverlay && document.body.contains(topOverlay)) document.body.removeChild(topOverlay);
-  } catch (e) {}
-  try {
-    if (bottomOverlay && document.body.contains(bottomOverlay)) document.body.removeChild(bottomOverlay);
-  } catch (e) {}
-  try {
-    if (leftOverlay && document.body.contains(leftOverlay)) document.body.removeChild(leftOverlay);
-  } catch (e) {}
-  try {
-    if (rightOverlay && document.body.contains(rightOverlay)) document.body.removeChild(rightOverlay);
-  } catch (e) {}
-  topOverlay = bottomOverlay = leftOverlay = rightOverlay = null;
+  if (overlayCanvas && document.body.contains(overlayCanvas)) {
+    document.body.removeChild(overlayCanvas);
+  }
+  overlayCanvas = null;
+  ctx = null;
 }

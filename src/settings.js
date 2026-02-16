@@ -1,67 +1,83 @@
+// src/settings.js
 /**
  * Settings Page Module
- * Handles the settings page functionality
+ * Handles the settings page functionality (both Modal and Full Page)
  */
 
-export function initSettingsPage() {
-  // Create settings page container
-  const settingsContainer = document.createElement('div');
-  settingsContainer.style.fontFamily = 'Inter, sans-serif';
-  settingsContainer.style.backgroundColor = '#1f2937';
-  settingsContainer.style.color = '#f9fafb';
-  settingsContainer.style.minHeight = '100vh';
-  settingsContainer.style.padding = '40px';
-  settingsContainer.style.boxSizing = 'border-box';
-  // Header
-  const header = document.createElement('h1');
-  header.textContent = 'OCR Extension Settings';
-  header.style.fontSize = '32px';
-  header.style.marginBottom = '40px';
-  header.style.textAlign = 'center';
+import { 
+    loadRules, saveSettings, getSettings, 
+    getProfileList, createProfile, deleteProfile, setActiveProfile, resetProfile,
+    importSettings, exportSettings, resetSystem, renameProfile
+} from "./utils/settingsManager.js";
+import { createModal } from "./ui/modal.js";
 
-  // Content area
-  const content = document.createElement('div');
-  content.style.maxWidth = '800px';
-  content.style.margin = '0 auto';
-  content.style.backgroundColor = '#374151';
-  content.style.padding = '30px';
-  content.style.borderRadius = '12px';
-  content.style.boxShadow = '0 10px 25px rgba(0,0,0,0.3)';
 
-  // Settings description
-  const description = document.createElement('p');
-  description.textContent = 'Settings page coming soon...';
-  description.style.fontSize = '18px';
-  description.style.color = '#9ca3af';
-  description.style.textAlign = 'center';
-  description.style.marginBottom = '30px';
+// Helper for unique IDs
+const generateId = () => Math.random().toString(36).substr(2, 9);
 
-  // Back button
-  const backButton = document.createElement('button');
-  backButton.textContent = 'Back to Popup';
-  backButton.style.padding = '12px 24px';
-  backButton.style.backgroundColor = '#4f46e5';
-  backButton.style.color = '#ffffff';
-  backButton.style.border = 'none';
-  backButton.style.borderRadius = '8px';
-  backButton.style.cursor = 'pointer';
-  backButton.style.fontSize = '16px';
-  backButton.style.fontFamily = 'Inter, sans-serif';
-  backButton.style.transition = 'all 0.2s ease';
-  backButton.style.display = 'block';
-  backButton.style.margin = '0 auto';
-  backButton.addEventListener('click', () => { window.close(); });
+export async function initSettingsPage() {
+    document.body.innerHTML = '';
+    const container = document.createElement('div');
+    Object.assign(container.style, {
+        fontFamily: 'Inter, sans-serif', backgroundColor: '#0f1724', color: '#f9fafb',
+        minHeight: '100vh', padding: '40px', boxSizing: 'border-box'
+    });
 
-  content.appendChild(description);
-  content.appendChild(backButton);
-  settingsContainer.appendChild(header);
-  settingsContainer.appendChild(content);
+    // --- Header ---
+    const header = document.createElement('div');
+    Object.assign(header.style, {
+        maxWidth: '900px', margin: '0 auto 30px auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+    });
 
-  // Add to body
-  document.body.appendChild(settingsContainer);
+    const titleGroup = document.createElement('div');
+    const title = document.createElement('h1');
+    title.textContent = 'OCR Settings';
+    Object.assign(title.style, { fontSize: '28px', margin: '0 0 5px 0' });
+    const subtitle = document.createElement('div');
+    subtitle.textContent = 'Configure extension behavior and profiles';
+    Object.assign(subtitle.style, { fontSize: '14px', color: '#9ca3af' });
+    titleGroup.appendChild(title);
+    titleGroup.appendChild(subtitle);
+
+    // Header Actions
+    const actions = document.createElement('div');
+    Object.assign(actions.style, { display: 'flex', gap: '10px' });
+
+    const reloadBtn = createButton('Reload UI', async () => location.reload(), 'secondary');
+    
+    actions.appendChild(reloadBtn);
+    header.appendChild(titleGroup);
+    header.appendChild(actions);
+
+    const content = document.createElement('div');
+    Object.assign(content.style, {
+        maxWidth: '900px', margin: '0 auto', backgroundColor: '#374151',
+        padding: '30px', borderRadius: '12px', boxShadow: '0 10px 25px rgba(0,0,0,0.3)'
+    });
+
+    container.appendChild(header);
+    container.appendChild(content);
+    document.body.appendChild(container);
+
+    // Initial Render
+    await renderSettingsUI(content, 'global');
 }
 
-export function openSettingsPanel() {
+function createButton(text, onClick, variant = 'primary') {
+    const btn = document.createElement('button');
+    btn.textContent = text;
+    const bg = variant === 'danger' ? 'transparent' : (variant === 'secondary' ? '#4b5563' : '#4f46e5');
+    const color = variant === 'danger' ? '#ef4444' : 'white';
+    const border = variant === 'danger' ? '1px solid #ef4444' : 'none';
+    
+    Object.assign(btn.style, {
+        padding: '8px 16px', background: bg, border: border, color: color, borderRadius: '6px', cursor: 'pointer', fontSize:'13px'
+    });
+    btn.onclick = onClick;
+    return btn;
+}
+
+export async function openSettingsPanel() {
     if (document.getElementById('ocr-settings-panel')) return;
 
     // Backdrop (modal)
@@ -69,453 +85,935 @@ export function openSettingsPanel() {
     backdrop.id = 'ocr-settings-backdrop';
     Object.assign(backdrop.style, {
       position: 'fixed', top: '0', left: '0', right: '0', bottom: '0',
-      backgroundColor: 'rgba(0,0,0,0.45)', zIndex: '1000000', opacity: '0', transition: 'opacity 220ms ease'
+      backgroundColor: 'rgba(0,0,0,0.45)', zIndex: '2147483646', opacity: '0', transition: 'opacity 220ms ease'
     });
 
     // Panel
     const panel = document.createElement('aside');
     panel.id = 'ocr-settings-panel';
     Object.assign(panel.style, {
-      position: 'fixed', top: '0', left: '0', height: '100vh', width: 'min(420px, 90vw)',
+      position: 'fixed', top: '0', left: '0', height: '100vh', width: 'min(480px, 90vw)',
       backgroundColor: '#0f1724', color: '#f9fafb', boxShadow: '2px 0 30px rgba(0,0,0,0.6)',
-      zIndex: '1000001', transform: 'translateX(-100%)', transition: 'transform 320ms cubic-bezier(.2,.9,.2,1)',
+      zIndex: '2147483647', transform: 'translateX(-100%)', transition: 'transform 320ms cubic-bezier(.2,.9,.2,1)',
       overflowY: 'auto', padding: '20px', boxSizing: 'border-box', fontFamily: 'Inter, sans-serif'
     });
+
+    const closePanel = () => {
+        panel.style.transform = 'translateX(-100%)';
+        backdrop.style.opacity = '0';
+        setTimeout(() => {
+            if (panel.parentElement) panel.remove();
+            if (backdrop.parentElement) backdrop.remove();
+        }, 340);
+        location.reload(); // Refresh to apply changes if any
+    };
+
+    backdrop.addEventListener('click', closePanel);
 
     // Header
     const header = document.createElement('div');
     header.style.display = 'flex'; header.style.alignItems = 'center'; header.style.justifyContent = 'space-between'; header.style.marginBottom = '12px';
+    
     const title = document.createElement('h2'); title.textContent = 'Settings'; title.style.margin = '0'; title.style.fontSize = '18px';
     const closeBtn = document.createElement('button'); closeBtn.textContent = '✕';
     Object.assign(closeBtn.style, { background: 'transparent', border: 'none', color: '#f9fafb', fontSize: '20px', cursor: 'pointer' });
+    closeBtn.onclick = closePanel;
+
     // visible site URL to the right of the title
     const siteInfo = document.createElement('div');
     siteInfo.style.color = '#9ca3af'; siteInfo.style.fontSize = '12px'; siteInfo.style.marginLeft = '8px';
     try { siteInfo.textContent = (new URL(window.location.href)).hostname || 'current site'; } catch(e){ siteInfo.textContent = 'current site'; }
+    
     const leftHeader = document.createElement('div'); leftHeader.style.display='flex'; leftHeader.style.alignItems='center'; leftHeader.style.gap='12px';
     leftHeader.appendChild(title); leftHeader.appendChild(siteInfo);
     header.appendChild(leftHeader); header.appendChild(closeBtn); panel.appendChild(header);
 
+    // Render UI
+    let currentScope = 'global';
+    try {
+        if (window.location && window.location.origin && window.location.origin !== 'null') {
+            // Default to previously saved scope for this site if user selected it?
+            // For now, logic defaults to global but checks site context
+            // actually let's try to load the last used scope or default to global
+            currentScope = `site:${window.location.origin}`;
+        }
+    } catch (e) {}
+
+    await renderSettingsUI(panel, currentScope, closePanel);
+
+    document.body.appendChild(backdrop);
+    document.body.appendChild(panel);
+    
+    requestAnimationFrame(() => {
+        backdrop.style.opacity = '1';
+        panel.style.transform = 'translateX(0)';
+    });
+}
+
+/**
+ * Main UI Builder
+ */
+async function renderSettingsUI(container, initialScope, closePanel) {
+    // Reference Style: Darker background for scope row
     // Rule Scope controls (VERY TOP)
-    const scopeRow = document.createElement('div'); scopeRow.style.display = 'flex'; scopeRow.style.alignItems = 'center'; scopeRow.style.justifyContent = 'center'; scopeRow.style.gap = '8px'; scopeRow.style.margin = '8px 0 12px 0';
-    const scopeLeft = document.createElement('div'); scopeLeft.style.display='flex'; scopeLeft.style.margin='8px 0 0 '; scopeLeft.style.alignItems='center'; scopeLeft.style.gap='6px'; scopeLeft.style.flex='1';
-    const scopeLabel = document.createElement('label'); scopeLabel.textContent = 'Rule Scope'; scopeLabel.style.color='#e6eef8'; scopeLabel.style.fontSize='13px';
-    const scopeSelect = document.createElement('select'); scopeSelect.id = 'rule_scope';
-    const optGlobal = document.createElement('option'); optGlobal.value = 'global'; optGlobal.textContent = 'Global Rules'; scopeSelect.appendChild(optGlobal);
-    Object.assign(scopeSelect.style, { padding: '6px', background:'#0b1220', color:'#e6eef8', border:'1px solid #25303a', borderRadius:'6px', minWidth: '160px', margin: '0 auto' });
-    scopeLeft.appendChild(scopeLabel); scopeLeft.appendChild(scopeSelect);
+    const scopeRow = document.createElement('div'); 
+    scopeRow.style.display = 'flex'; scopeRow.style.alignItems = 'center'; scopeRow.style.justifyContent = 'center'; 
+    scopeRow.style.gap = '8px'; scopeRow.style.margin = '8px 0 12px 0';
 
-    const scopeRight = document.createElement('div'); scopeRight.style.display='flex'; scopeRight.style.alignItems='center'; scopeRight.style.gap='8px';
-    const addScopeBtn = document.createElement('button'); addScopeBtn.textContent = '+'; Object.assign(addScopeBtn.style,{padding:'6px 8px',borderRadius:'6px',border:'none',background:'#4f46e5',color:'#fff',cursor:'pointer'});
-    const deleteScopeBtn = document.createElement('button'); deleteScopeBtn.textContent = '🗑️'; Object.assign(deleteScopeBtn.style,{padding:'6px 8px',borderRadius:'6px',border:'none',background:'#ef4444',color:'#fff',cursor:'pointer'});
-    scopeRight.appendChild(addScopeBtn); scopeRight.appendChild(deleteScopeBtn);
+    const scopeLeft = document.createElement('div'); 
+    scopeLeft.style.display='flex'; scopeLeft.style.margin='8px 0 0 '; scopeLeft.style.alignItems='center'; 
+    scopeLeft.style.gap='6px'; scopeLeft.style.flex='1';
+    
+    // Label
+    const scopeLabel = document.createElement('label'); 
+    scopeLabel.textContent = 'Rule Scope'; 
+    scopeLabel.style.color='#e6eef8'; scopeLabel.style.fontSize='13px';
+    
+    // Select
+    const scopeSelect = document.createElement('select'); 
+    scopeSelect.id = 'rule_scope';
+    Object.assign(scopeSelect.style, { 
+        padding: '6px', background:'#0b1220', color:'#e6eef8', border:'1px solid #25303a', 
+        borderRadius:'6px', minWidth: '160px', margin: '0 auto' 
+    });
 
-    scopeRow.appendChild(scopeLeft); scopeRow.appendChild(scopeRight);
-    panel.appendChild(scopeRow);
+    const scopes = ['global'];
+    // logic to add current site if not global
+    let currentSite = null;
+    try {
+        if (window.location.origin && window.location.origin !== 'null') currentSite = `site:${window.location.origin}`;
+    } catch(e){}
+    
+    if (currentSite && !scopes.includes(currentSite)) scopes.push(currentSite);
+
+    // Populate select
+    const populateScopes = () => {
+        scopeSelect.innerHTML = '';
+        scopes.forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = s;
+            opt.textContent = s === 'global' ? 'Global Rules' : (s.replace('site:', '') + ' (This Site)');
+            scopeSelect.appendChild(opt);
+        });
+        scopeSelect.value = initialScope;
+    };
+    populateScopes();
+
+    scopeLeft.appendChild(scopeLabel); 
+    scopeLeft.appendChild(scopeSelect);
+
+    // Scope Actions
+    const scopeRight = document.createElement('div'); 
+    scopeRight.style.display='flex'; scopeRight.style.alignItems='center'; scopeRight.style.gap='8px';
+    
+    const addScopeBtn = document.createElement('button'); 
+    addScopeBtn.textContent = '+'; 
+    Object.assign(addScopeBtn.style,{
+        padding:'6px 8px',borderRadius:'6px',border:'none',background:'#4f46e5',color:'#fff',cursor:'pointer'
+    });
+    
+    const deleteScopeBtn = document.createElement('button'); 
+    deleteScopeBtn.textContent = '🗑️'; 
+    Object.assign(deleteScopeBtn.style,{
+        padding:'6px 8px',borderRadius:'6px',border:'none',background:'#ef4444',color:'#fff',cursor:'pointer'
+    });
+
+    scopeRight.appendChild(addScopeBtn); 
+    scopeRight.appendChild(deleteScopeBtn);
+
+    scopeRow.appendChild(scopeLeft); 
+    scopeRow.appendChild(scopeRight);
+    container.appendChild(scopeRow);
+
+    // Events for Scope
+    scopeSelect.onchange = () => renderContent(scopeSelect.value);
+    
+    addScopeBtn.onclick = () => {
+        if (currentSite && !scopes.includes(currentSite)) {
+             scopes.push(currentSite);
+             populateScopes();
+             scopeSelect.value = currentSite;
+             renderContent(currentSite);
+        } else {
+             alert('You are already on the current site scope or it is invalid.');
+        }
+    };
+
+    deleteScopeBtn.onclick = async () => {
+        const val = scopeSelect.value;
+        if (val === 'global') return alert('Cannot delete Global scope.');
+        if (confirm(`Delete rules for "${val}"?`)) {
+            // Delete logic (clear storage keys)
+            await saveDeletions(val, []); // Helpers handle site specific storage clearing effectively
+            await saveReplacements(val, []);
+             
+            const idx = scopes.indexOf(val);
+            if(idx > -1) scopes.splice(idx, 1);
+            populateScopes();
+            scopeSelect.value = 'global';
+            renderContent('global');
+        }
+    };
 
     // Sections container
-    const container = document.createElement('div'); container.style.display = 'flex'; container.style.flexDirection = 'column'; container.style.gap = '14px';
+    const contentContainer = document.createElement('div'); 
+    contentContainer.style.display = 'flex'; contentContainer.style.flexDirection = 'column'; contentContainer.style.gap = '14px';
+    container.appendChild(contentContainer);
 
-    // --- A. Manhwa Mode Section ---
-    const manhwaCard = document.createElement('section');
-    Object.assign(manhwaCard.style, { background: '#111827', padding: '12px', borderRadius: '8px' });
-    const manhwaTitle = document.createElement('h3'); manhwaTitle.textContent = 'Find & Replace Rules'; manhwaTitle.style.margin = '0 0 8px 0';
-    const manhwaDesc = document.createElement('div'); manhwaDesc.textContent = 'Characters/words to replace in the OCR text'; manhwaDesc.style.color = '#9ca3af'; manhwaDesc.style.fontSize = '13px'; manhwaDesc.style.marginBottom = '10px';
+    const renderContent = async (scope) => {
+        contentContainer.innerHTML = '';
+        
+        // 1. Profile Manager (as a card)
+        if (scope === 'global') {
+            const profileCard = createCard('Profile Management');
+            await renderProfileManager(profileCard);
+            contentContainer.appendChild(profileCard);
+        }
 
-    // Replace rule inputs
-    const replaceRow = document.createElement('div');
-    replaceRow.style.display = 'flex'; replaceRow.style.flexDirection = 'column'; replaceRow.style.gap = '8px';
-    const inputsRow = document.createElement('div'); inputsRow.style.display = 'flex'; inputsRow.style.gap = '12px'; inputsRow.style.alignItems = 'center'; inputsRow.style.flexWrap = 'wrap'; inputsRow.style.margin = '0 auto';
-    const findInput = document.createElement('input'); findInput.placeholder = 'Character to Find';
-    Object.assign(findInput.style, { width: '150px', padding: '8px', borderRadius: '6px', background: '#0b1220', color: '#e6eef8', border: '1px solid #25303a' });
-    const replaceInput = document.createElement('input'); replaceInput.placeholder = 'Replace With';
-    Object.assign(replaceInput.style, { width: '150px', padding: '8px', borderRadius: '6px', background: '#0b1220', color: '#e6eef8', border: '1px solid #25303a' });
-    const arrow = document.createElement('div'); arrow.textContent = '→'; arrow.style.color = '#9ca3af'; arrow.style.fontSize = '18px'; arrow.style.display = 'flex'; arrow.style.alignItems = 'center'; arrow.style.padding = '0 4px';
-    inputsRow.appendChild(findInput); inputsRow.appendChild(arrow); inputsRow.appendChild(replaceInput);
-    const errorMsg = document.createElement('div'); errorMsg.style.color = '#f87171'; errorMsg.style.fontSize = '12px'; errorMsg.style.marginTop = '6px'; errorMsg.style.display = 'none'; errorMsg.textContent = '';
-    const addRuleBtn = document.createElement('button'); addRuleBtn.textContent = 'Add';
-    Object.assign(addRuleBtn.style, { padding: '8px 10px', borderRadius: '6px', border: 'none', background: '#4f46e5', color: '#fff', cursor: 'pointer', width: '72px', alignSelf: 'center' });
-    replaceRow.appendChild(inputsRow); replaceRow.appendChild(errorMsg); replaceRow.appendChild(addRuleBtn);
+        // 2. Rules Card (Manhwa Mode style)
+        const rulesCard = createCard('Find & Replace Rules');
+        const rulesSubtitle = document.createElement('div');
+        rulesSubtitle.textContent = 'Characters/words to replace in the OCR text';
+        rulesSubtitle.style.color = '#9ca3af'; rulesSubtitle.style.fontSize = '13px'; rulesSubtitle.style.marginBottom = '10px';
+        rulesCard.insertBefore(rulesSubtitle, rulesCard.children[1]); // Insert after title
 
-    const replaceList = document.createElement('div'); replaceList.style.marginTop = '8px'; replaceList.style.display = 'grid'; replaceList.style.gridTemplateColumns = '1fr 1fr'; replaceList.style.gap = '8px';
+        const rules = await loadRules(scope);
+        // We will render sections INTO the card
+        renderReplacementsSection(rulesCard, rules.replacements, scope);
+        renderDeletionsSection(rulesCard, rules.deletions, scope);
+        contentContainer.appendChild(rulesCard);
 
-    // Delete char input
-    const delTitle = document.createElement('h4'); delTitle.textContent = 'Characters to Delete'; delTitle.style.margin = '12px 0 6px 0'; delTitle.style.fontSize = '15px';
-    const delDesc = document.createElement('div'); delDesc.textContent = 'These characters will be removed from the OCR text'; delDesc.style.color = '#9ca3af'; delDesc.style.fontSize = '13px';
+        // 3. Configuration Card (Global only)
+        if (scope === 'global') {
+            const configCard = createCard('Pipeline Configuration');
+            await renderPipelineConfig(configCard);
+            
+            const cleanDivider = document.createElement('div');
+            cleanDivider.style.borderTop = '1px solid #374151'; cleanDivider.style.margin = '12px 0';
+            configCard.appendChild(cleanDivider);
+            
+            await renderTextCleaningConfig(configCard, scope);
+            
+            const reconDivider = document.createElement('div');
+            reconDivider.style.borderTop = '1px solid #374151'; reconDivider.style.margin = '12px 0';
+            configCard.appendChild(reconDivider);
+            
+            await renderReconstructionConfig(configCard, scope);
+            contentContainer.appendChild(configCard);
 
-    const deleteRow = document.createElement('div'); deleteRow.style.display = 'flex'; deleteRow.style.gap = '8px'; deleteRow.style.alignItems = 'center'; deleteRow.style.marginTop = '8px';
-    const deleteInput = document.createElement('input'); deleteInput.placeholder = 'Character to Delete';
-    Object.assign(deleteInput.style, { flex: '1', padding: '8px', borderRadius: '6px', background: '#0b1220', color: '#e6eef8', border: '1px solid #25303a' });
-    const addDeleteBtn = document.createElement('button'); addDeleteBtn.textContent = 'Add';
-    Object.assign(addDeleteBtn.style, { padding: '8px 10px', borderRadius: '6px', border: 'none', background: '#4f46e5', color: '#fff', cursor: 'pointer', width: '72px', flex: '0 0 auto' });
-    deleteRow.appendChild(deleteInput); deleteRow.appendChild(addDeleteBtn);
+            const uiCard = createCard('UI & Behavior');
+            await renderUIConfig(uiCard);
+            contentContainer.appendChild(uiCard);
+        }
 
-    const deleteList = document.createElement('div'); deleteList.style.marginTop = '8px'; deleteList.style.display = 'flex'; deleteList.style.flexWrap = 'wrap'; deleteList.style.gap = '6px';
+        // 4. Data Management (Import/Export) - styled like reference
+        if (scope === 'global') {
+            const manageCard = document.createElement('section');
+            Object.assign(manageCard.style, { 
+                background: '#111827', padding: '12px', borderRadius: '8px', 
+                display: 'flex', gap: '8px', justifyContent: 'center' 
+            });
+            await renderDataManagement(manageCard);
+            contentContainer.appendChild(manageCard);
+        }
 
-    manhwaCard.appendChild(manhwaTitle);
-    manhwaCard.appendChild(manhwaDesc);
-    manhwaCard.appendChild(replaceRow);
-    manhwaCard.appendChild(replaceList);
-    manhwaCard.appendChild(delTitle);
-    manhwaCard.appendChild(delDesc);
-    manhwaCard.appendChild(deleteRow);
-    manhwaCard.appendChild(deleteList);
+        // Footer Actions
+        const footer = document.createElement('div'); 
+        footer.style.display='flex'; footer.style.justifyContent='center'; footer.style.marginTop='6px'; 
+        footer.style.alignItems='center'; footer.style.gap='8px';
+        
+        // Auto-save dummy (functionality is implicitly auto-save in my engine, but UI requested)
+        const autoSaveRow = document.createElement('div'); 
+        autoSaveRow.style.display='flex'; autoSaveRow.style.justifyContent='center'; 
+        autoSaveRow.style.alignItems='center'; autoSaveRow.style.gap='8px'; autoSaveRow.style.marginTop='6px';
+        
+        const autoSaveChk = document.createElement('input'); 
+        autoSaveChk.type='checkbox'; autoSaveChk.checked = true; autoSaveChk.disabled = true; // Always on in this implementation
+        const autoLabel = document.createElement('label'); 
+        autoLabel.textContent = 'Auto-save (Always On)'; 
+        autoLabel.style.color='#e6eef8'; autoLabel.style.fontSize='13px';
+        
+        autoSaveRow.appendChild(autoSaveChk); 
+        autoSaveRow.appendChild(autoLabel);
+        contentContainer.appendChild(autoSaveRow);
 
-    // --- B. Settings Management ---
-    const manageCard = document.createElement('section');
-    Object.assign(manageCard.style, { background: '#111827', padding: '12px', borderRadius: '8px', display: 'flex', gap: '8px', justifyContent: 'center' });
+        const saveBtn = document.createElement('button'); 
+        saveBtn.textContent='Close';
+        Object.assign(saveBtn.style,{
+            padding:'10px 14px',borderRadius:'8px',border:'none',background:'#4f46e5',color:'#fff',cursor:'pointer'
+        });
+        saveBtn.onclick = () => { if(closePanel) closePanel(); };
+        
+        footer.appendChild(saveBtn);
+        contentContainer.appendChild(footer);
+    };
+
+    await renderContent(initialScope);
+}
+
+function createCard(titleText) {
+    const card = document.createElement('section');
+    Object.assign(card.style, { background: '#111827', padding: '12px', borderRadius: '8px' });
+    if (titleText) {
+        const title = document.createElement('h3'); 
+        title.textContent = titleText; 
+        title.style.margin = '0 0 8px 0';
+        title.style.fontSize = '16px';
+        card.appendChild(title);
+    }
+    return card;
+}
+
+async function renderDataManagement(container) {
+    // Reference style: simple row of buttons
     const importBtn = document.createElement('button'); importBtn.textContent = '📥 Import Settings';
     const exportBtn = document.createElement('button'); exportBtn.textContent = '📤 Export Settings';
-    [importBtn, exportBtn].forEach(b=>Object.assign(b.style,{padding:'8px 12px',borderRadius:'6px',border:'none',background:'#4f46e5',color:'#fff',cursor:'pointer'}));
+    const resetBtn = document.createElement('button'); resetBtn.textContent = '⚠️ Reset'; // Added reset for safety
+    
+    [importBtn, exportBtn, resetBtn].forEach(b=>Object.assign(b.style,{
+        padding:'8px 12px',borderRadius:'6px',border:'none',background:'#4f46e5',color:'#fff',cursor:'pointer'
+    }));
+    resetBtn.style.background = '#7f1d1d'; // Dark red for reset
 
-    // hidden file input for import
-    const fileInput = document.createElement('input'); fileInput.type = 'file'; fileInput.accept = 'application/json'; fileInput.style.display = 'none';
-    manageCard.appendChild(importBtn); manageCard.appendChild(exportBtn); manageCard.appendChild(fileInput);
+    // Export Logic
+    exportBtn.onclick = () => {
+        // Simple export (Full)
+        exportSettings('full').then(json => {
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `ocr-settings-all.json`;
+            a.click();
+        });
+    };
 
-    // (Language select moved to popup) -- removed from settings panel
+    // Import Logic
+    importBtn.onclick = () => {
+        const input = document.createElement('input');
+        input.type = 'file'; input.accept = '.json';
+        input.onchange = async (e) => {
+             const f = e.target.files[0];
+             if(!f) return;
+             const text = await f.text();
+             try {
+                // Determine type for confirmation
+                const data = JSON.parse(text);
+                if(confirm(`Import settings? This will overwrite existing configuration.`)) {
+                     await importSettings(text, 'merge');
+                     location.reload();
+                }
+             } catch(e) { alert(' invalid file '); }
+        };
+        input.click();
+    };
 
-    // --- D. Copy Function Configuration ---
-    const copyCard = document.createElement('section'); Object.assign(copyCard.style,{background:'#111827',padding:'12px',borderRadius:'8px'});
-    const copyTitle = document.createElement('h3'); copyTitle.textContent='Copy Function Configuration'; copyTitle.style.margin='0 0 8px 0';
-    const copyDesc = document.createElement('p'); copyDesc.textContent='When checked, clicking the action will also copy the resulting text to clipboard.'; copyDesc.style.color='#9ca3af'; copyDesc.style.margin='0 0 8px 0'; copyDesc.style.fontSize='13px';
-    const actions = ['Lowercase','Uppercase','Single Line','Manhwa Mode'];
-    const copyList = document.createElement('div'); copyList.style.display='flex'; copyList.style.flexDirection='column'; copyList.style.gap='6px';
-    actions.forEach(a=>{
-      const row=document.createElement('label'); row.style.display='flex'; row.style.alignItems='center'; row.style.gap='8px'; row.style.color = '#e6eef8';
-      const cb=document.createElement('input'); cb.type='checkbox'; cb.id=`copy_${a.replace(/\s+/g,'_').toLowerCase()}`;
-      // Themed checkbox
-      cb.style.width = '16px'; cb.style.height = '16px'; cb.style.accentColor = '#4f46e5'; cb.style.cursor = 'pointer';
-      const span=document.createElement('span'); span.textContent=a; span.style.userSelect = 'none';
-      row.appendChild(cb); row.appendChild(span); copyList.appendChild(row);
-    });
-    copyCard.appendChild(copyTitle); copyCard.appendChild(copyDesc); copyCard.appendChild(copyList);
-
-    // Footer actions
-    // auto-save flag (read from storage before creating checkbox)
-    const autoSave = JSON.parse(localStorage.getItem('manhwa_autoSave') || 'false');
-    // Auto-save row (placed above the Close button)
-    const autoSaveRow = document.createElement('div'); autoSaveRow.style.display='flex'; autoSaveRow.style.justifyContent='center'; autoSaveRow.style.alignItems='center'; autoSaveRow.style.gap='8px'; autoSaveRow.style.marginTop='6px';
-    const autoSaveChk = document.createElement('input'); autoSaveChk.type='checkbox'; autoSaveChk.id='autosave_chk'; autoSaveChk.checked = autoSave;
-    const autoSaveLabel = document.createElement('label'); autoSaveLabel.textContent='Auto-save'; autoSaveLabel.style.color='#e6eef8'; autoSaveLabel.style.fontSize='13px';
-    // help icon with tooltip
-    const autoHelp = document.createElement('span'); autoHelp.textContent=' ?'; autoHelp.title = 'Automatically saves rule changes without needing to click Save'; autoHelp.style.cursor = 'help'; autoHelp.style.color = '#9ca3af'; autoHelp.style.fontSize = '13px';
-    autoSaveRow.appendChild(autoSaveChk); autoSaveRow.appendChild(autoSaveLabel); autoSaveRow.appendChild(autoHelp);
-
-    const footer = document.createElement('div'); footer.style.display='flex'; footer.style.justifyContent='center'; footer.style.marginTop='6px'; footer.style.alignItems='center'; footer.style.gap='8px';
-    const saveBtn = document.createElement('button'); saveBtn.textContent='Close & Save';
-    Object.assign(saveBtn.style,{padding:'10px 14px',borderRadius:'8px',border:'none',background:'#4f46e5',color:'#fff',cursor:'pointer'});
-    const saveIndicator = document.createElement('div'); saveIndicator.style.color = '#9ca3af'; saveIndicator.style.fontSize = '13px'; saveIndicator.style.display='none'; saveIndicator.textContent = '';
-    footer.appendChild(saveIndicator); footer.appendChild(saveBtn);
-
-    // assemble in requested order: rules, delete, copy config, import/export, footer
-    container.appendChild(manhwaCard);
-    container.appendChild(copyCard);
-    container.appendChild(manageCard);
-    // place autosave row above the footer
-    container.appendChild(autoSaveRow);
-    container.appendChild(footer);
-    panel.appendChild(container);
-
-    // small toast helper for notifications
-    function showToast(msg){
-      const t = document.createElement('div');
-      t.textContent = msg;
-      Object.assign(t.style,{position:'fixed',bottom:'24px',left:'50%',transform:'translateX(-50%)',background:'#0b1220',color:'#e6eef8',padding:'8px 12px',borderRadius:'8px',border:'1px solid #25303a',zIndex:1000003,opacity:'0',transition:'opacity 160ms ease'});
-      panel.appendChild(t);
-      requestAnimationFrame(()=>t.style.opacity='1');
-      setTimeout(()=>{ t.style.opacity='0'; setTimeout(()=>t.remove(),300); }, 1800);
-    }
-
-    autoSaveChk.addEventListener('change', ()=>{
-      try{ localStorage.setItem('manhwa_autoSave', JSON.stringify(!!autoSaveChk.checked)); }catch(e){}
-      if(autoSaveChk.checked){ saveSettings(); clearDirty(); showToast('Auto-save enabled: Changes are saved automatically'); }
-      else { showToast('Auto-save disabled'); }
-    });
-
-    // In-memory rule storage (also persisted to localStorage per-scope)
-    window.manhwaRules = window.manhwaRules || []; // array of {find, replace}
-    window.manhwaDeleteChars = window.manhwaDeleteChars || []; // array of single-char strings
-    let previousScope = 'global';
-    let dirty = false;
-
-    function scopeKeyRules(scope) { return 'manhwa_rules::' + encodeURIComponent(scope); }
-    function scopeKeyDeletes(scope) { return 'manhwa_deletes::' + encodeURIComponent(scope); }
-    function currentScope() { return document.getElementById('rule_scope') ? document.getElementById('rule_scope').value : 'global'; }
-
-    function markDirty() { dirty = true; saveIndicator.style.display = 'inline-block'; saveIndicator.textContent = 'Unsaved'; }
-    function clearDirty() { dirty = false; saveIndicator.style.display = 'inline-block'; saveIndicator.textContent = 'Saved'; setTimeout(()=>{ if(!dirty) saveIndicator.style.display='none'; }, 900); }
-
-    // Render functions
-    function removeRuleAt(idx){ window.manhwaRules.splice(idx,1); renderReplaceList(); if(autoSaveChk && autoSaveChk.checked) saveSettings(); else markDirty(); }
-
-    function renderReplaceList() {
-      replaceList.innerHTML = '';
-      window.manhwaRules.forEach((r, idx)=>{
-        const item = document.createElement('div');
-        item.style.display = 'flex';
-        item.style.flexDirection = 'row';
-        item.style.alignItems = 'center';
-        item.style.justifyContent = 'space-between';
-        item.style.padding = '6px 8px';
-        item.style.background = '#071022';
-        item.style.borderRadius = '8px';
-        item.style.minHeight = '36px';
-        item.style.boxSizing = 'border-box';
-
-        const label = document.createElement('div');
-        label.textContent = `${r.find} → ${r.replace}`;
-        label.style.color = '#e6eef8';
-        label.style.fontSize = '14px';
-        label.style.flex = '1';
-        label.style.marginRight = '8px';
-        label.style.whiteSpace = 'nowrap';
-        label.style.overflow = 'hidden';
-        label.style.textOverflow = 'ellipsis';
-
-        const del = document.createElement('button'); del.textContent='✕';
-        Object.assign(del.style,{padding:'6px',borderRadius:'6px',border:'none',background:'#ef4444',color:'#fff',cursor:'pointer', marginLeft: '8px'});
-        del.addEventListener('click', ()=>{ removeRuleAt(idx); });
-
-        item.appendChild(label);
-        item.appendChild(del);
-        replaceList.appendChild(item);
-      });
-    }
-
-    function removeDeleteAt(idx){ window.manhwaDeleteChars.splice(idx,1); renderDeleteList(); if(autoSaveChk && autoSaveChk.checked) saveSettings(); else markDirty(); }
-
-    function renderDeleteList() {
-      deleteList.innerHTML = '';
-      window.manhwaDeleteChars.forEach((ch, idx)=>{
-        const chip = document.createElement('div');
-        chip.style.display = 'inline-flex';
-        chip.style.alignItems = 'center';
-        chip.style.gap = '8px';
-        chip.style.padding = '6px 8px';
-        chip.style.background = '#07202a';
-        chip.style.color = '#e6eef8';
-        chip.style.borderRadius = '8px';
-        chip.style.border = '1px solid rgba(255,255,255,0.03)';
-
-        const span = document.createElement('span'); span.textContent = ch; span.style.fontSize = '13px'; span.style.marginRight = '10px';
-
-        const del = document.createElement('button'); del.textContent='✕';
-        Object.assign(del.style,{padding:'6px',borderRadius:'6px',border:'none',background:'#ef4444',color:'#fff',cursor:'pointer'});
-        del.addEventListener('click', ()=>{ removeDeleteAt(idx); });
-
-        chip.appendChild(span); chip.appendChild(del); deleteList.appendChild(chip);
-      });
-    }
-
-    function loadSettings() {
-      const scope = currentScope() || 'global';
-      // populate scopeSelect with known scopes from localStorage (keep global)
-      try {
-        const seen = new Set();
-        seen.add('global');
-        for (let i=0;i<localStorage.length;i++){
-          const k = localStorage.key(i);
-          if (!k) continue;
-          if (k.startsWith('manhwa_rules::') || k.startsWith('manhwa_deletes::')){
-            const sc = decodeURIComponent(k.split('::')[1]||'');
-            if (sc && !seen.has(sc)) { const opt=document.createElement('option'); opt.value=sc; opt.textContent = sc.startsWith('site:') ? sc.replace(/^site:/,'') : sc; scopeSelect.appendChild(opt); seen.add(sc); }
-          }
+    resetBtn.onclick = () => {
+        if(confirm('Factory Reset? This cannot be undone.')) {
+            resetSystem('full').then(() => location.reload());
         }
-      } catch(e){}
+    };
 
-      // deletes for this scope
-      const deletesRaw = localStorage.getItem(scopeKeyDeletes(scope)) || '[]';
-      try { const parsed = JSON.parse(deletesRaw); window.manhwaDeleteChars = Array.isArray(parsed) ? parsed.slice() : []; } catch (e) { window.manhwaDeleteChars = []; }
+    container.appendChild(importBtn);
+    container.appendChild(exportBtn);
+    container.appendChild(resetBtn);
+}
 
-      // rules for this scope
-      const rulesRaw = localStorage.getItem(scopeKeyRules(scope)) || '[]';
-      try { const parsed = JSON.parse(rulesRaw); window.manhwaRules = Array.isArray(parsed) ? parsed.map(p=>({find: String(p.find||''), replace: String(p.replace||'')})) : []; } catch (e) { window.manhwaRules = []; }
 
-      // load copy config (global)
-      const copyCfg = JSON.parse(localStorage.getItem('copyConfig') || '{}');
-      actions.forEach(a=>{ const id=`copy_${a.replace(/\s+/g,'_').toLowerCase()}`; const el=document.getElementById(id); if(el) el.checked = !!copyCfg[id]; });
-
-      renderReplaceList(); renderDeleteList();
-      previousScope = scope;
-      clearDirty();
-    }
-
-    function saveSettings() {
-      const scope = currentScope() || 'global';
-      try { localStorage.setItem(scopeKeyDeletes(scope), JSON.stringify(window.manhwaDeleteChars)); } catch (e) { localStorage.setItem(scopeKeyDeletes(scope), JSON.stringify(window.manhwaDeleteChars || [])); }
-      try { localStorage.setItem(scopeKeyRules(scope), JSON.stringify(window.manhwaRules)); } catch (e) { localStorage.setItem(scopeKeyRules(scope), JSON.stringify(window.manhwaRules || [])); }
-      // for backward compatibility persist global legacy keys when saving global scope
-      if (scope === 'global') {
-        try { localStorage.setItem('charsToDelete', JSON.stringify(window.manhwaDeleteChars)); } catch (e) { localStorage.setItem('charsToDelete', (window.manhwaDeleteChars || []).join('')); }
-        try { localStorage.setItem('replacementsText', JSON.stringify(window.manhwaRules)); } catch (e) { localStorage.setItem('replacementsText', '[]'); }
-      }
-      // language moved to popup; do not persist here
-      const cfg = {};
-      actions.forEach(a=>{ const id=`copy_${a.replace(/\s+/g,'_').toLowerCase()}`; const el=document.getElementById(id); cfg[id]=!!(el && el.checked); });
-      localStorage.setItem('copyConfig', JSON.stringify(cfg));
-    }
-
-    // Import/export handlers
-    importBtn.addEventListener('click', ()=> fileInput.click());
-    fileInput.addEventListener('change', (e)=>{
-      const f = e.target.files && e.target.files[0]; if(!f) return;
-      const reader = new FileReader();
-      reader.onload = () => {
-        try {
-          const parsed = JSON.parse(reader.result);
-          if(parsed.manhwaDeleteChars) window.manhwaDeleteChars = parsed.manhwaDeleteChars.slice();
-          if(parsed.manhwaRules) window.manhwaRules = parsed.manhwaRules.map(r=>({find:r.find+'',replace:r.replace+''}));
-          if(parsed.charsToDelete && !parsed.manhwaDeleteChars) {
-            try { const p = JSON.parse(parsed.charsToDelete); if(Array.isArray(p)) window.manhwaDeleteChars = p.slice(); else window.manhwaDeleteChars = (parsed.charsToDelete||'').split(''); } catch { window.manhwaDeleteChars = (parsed.charsToDelete||'').split(''); }
-          }
-          if(parsed.replacementsText && !parsed.manhwaRules) {
-            // try legacy format
-            try { const p = JSON.parse(parsed.replacementsText); if(Array.isArray(p)) window.manhwaRules = p.slice(); } catch { const lines=(parsed.replacementsText||'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean); window.manhwaRules = []; lines.forEach(line=>{ const arrow = line.indexOf('→')>=0 ? '→' : (line.indexOf('=>')>=0 ? '=>' : null); if(arrow){ const parts=line.split(arrow); window.manhwaRules.push({find:parts[0], replace:parts.slice(1).join(arrow)}); } }); }
-          }
-          // language handled in popup now
-          if(parsed.copyConfig) { Object.keys(parsed.copyConfig).forEach(k=>{ const el=document.getElementById(k); if(el) el.checked=!!parsed.copyConfig[k]; }); }
-          renderReplaceList(); renderDeleteList(); saveSettings();
-          alert('Imported settings');
-        } catch (err) { alert('Invalid settings file'); }
-      };
-      reader.readAsText(f);
-      e.target.value = '';
+// --- Profile Manager Renderer ---
+async function renderProfileManager(container) {
+    const settings = await getSettings(['active_profile_id']);
+    const profiles = await getProfileList();
+    const activeId = settings.active_profile_id;
+    
+    // Container style reset (handled by parent card now)
+    Object.assign(container.style, { display: 'flex', flexDirection: 'column', gap: '10px' });
+    
+    const controls = document.createElement('div');
+    Object.assign(controls.style, { display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' });
+    
+    // Select Profile
+    const select = document.createElement('select');
+    Object.assign(select.style, { 
+        padding:'8px', background:'#0b1220', color:'#e6eef8', border:'1px solid #25303a', 
+        borderRadius:'6px', minWidth: '180px', flex: '1'
     });
-
-    exportBtn.addEventListener('click', ()=>{
-      // export ALL scopes (includes site-specific rules)
-      const all = {};
-      try{
-        for(let i=0;i<localStorage.length;i++){
-          const k = localStorage.key(i);
-          if(!k) continue;
-          if(k.startsWith('manhwa_rules::')){
-            const sc = decodeURIComponent(k.split('::')[1]||'');
-            try{ all[sc] = all[sc] || {}; all[sc].manhwaRules = JSON.parse(localStorage.getItem(k) || '[]'); }catch(e){ all[sc].manhwaRules = []; }
-          }
-          if(k.startsWith('manhwa_deletes::')){
-            const sc = decodeURIComponent(k.split('::')[1]||'');
-            try{ all[sc] = all[sc] || {}; all[sc].manhwaDeleteChars = JSON.parse(localStorage.getItem(k) || '[]'); }catch(e){ all[sc].manhwaDeleteChars = []; }
-          }
+    
+    profiles.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = p.name + (p.id === activeId ? ' (Active)' : '') + (['default','manhwa'].includes(p.id) ? ' [System]' : '');
+        select.appendChild(opt);
+    });
+    select.value = activeId;
+    
+    // Switch Handler (Runtime)
+    select.onchange = async () => {
+        await setActiveProfile(select.value);
+        location.reload(); 
+    };
+    
+    controls.appendChild(select);
+    
+    // Actions Group
+    const btnGroup = document.createElement('div');
+    Object.assign(btnGroup.style, { display: 'flex', gap: '6px' });
+    
+    // Helper for mini buttons
+    const createMiniBtn = (icon, title, action, variant='primary') => {
+        const b = document.createElement('button');
+        b.textContent = icon; b.title = title;
+        Object.assign(b.style, {
+            padding: '8px 12px', borderRadius: '6px', border: 'none', cursor: 'pointer',
+            background: variant==='danger' ? '#7f1d1d' : '#374151', color: 'white'
+        });
+        b.onclick = action;
+        return b;
+    };
+    
+    // --- New / Duplicate ---
+    btnGroup.appendChild(createMiniBtn('📋', 'Duplicate Profile', async () => {
+        const name = prompt('New profile name (copy of current):', profiles.find(p=>p.id===activeId).name + ' Copy');
+        if(name) {
+            const id = await createProfile(name, activeId);
+            await setActiveProfile(id);
+            location.reload();
         }
-      }catch(e){}
-      const payload = { exportedAt: new Date().toISOString(), scopes: all, copyConfig: JSON.parse(localStorage.getItem('copyConfig') || '{}') };
-      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url; a.download = 'ocr-settings-all.json'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-    });
+    }));
+    
+    btnGroup.appendChild(createMiniBtn('➕', 'New Empty Profile', async () => {
+        const name = prompt('New profile name:');
+        if(name) {
+            const id = await createProfile(name);
+            await setActiveProfile(id);
+            location.reload();
+        }
+    }));
 
-    // Close handlers with unsaved-change confirmation
-    function doClose(save){ if(save) saveSettings(); panel.style.transform='translateX(-100%)'; backdrop.style.opacity='0'; setTimeout(()=>{ if(backdrop.parentElement) backdrop.parentElement.removeChild(backdrop); if(panel.parentElement) panel.parentElement.removeChild(panel); window.removeEventListener('keydown', onKey); }, 340); }
-
-    function closePanel(){
-      if (dirty && !(autoSaveChk && autoSaveChk.checked)){
-        // show confirm dialog inside panel
-        const confirmBox = document.createElement('div');
-        Object.assign(confirmBox.style,{position:'absolute',left:'50%',top:'50%',transform:'translate(-50%,-50%)',background:'#0b1220',padding:'12px',borderRadius:'8px',border:'1px solid #25303a',zIndex:1000003});
-        const msg = document.createElement('div'); msg.textContent = 'You have unsaved changes. Save before closing?'; msg.style.marginBottom='8px'; msg.style.color='#e6eef8';
-        const bSave = document.createElement('button'); bSave.textContent='Save & Close'; Object.assign(bSave.style,{marginRight:'8px',padding:'6px 8px',background:'#4f46e5',color:'#fff',border:'none',borderRadius:'6px'});
-        const bDiscard = document.createElement('button'); bDiscard.textContent='Discard & Close'; Object.assign(bDiscard.style,{marginRight:'8px',padding:'6px 8px',background:'#ef4444',color:'#fff',border:'none',borderRadius:'6px'});
-        const bCancel = document.createElement('button'); bCancel.textContent='Cancel'; Object.assign(bCancel.style,{padding:'6px 8px',background:'#374151',color:'#fff',border:'none',borderRadius:'6px'});
-        confirmBox.appendChild(msg); confirmBox.appendChild(bSave); confirmBox.appendChild(bDiscard); confirmBox.appendChild(bCancel);
-        panel.appendChild(confirmBox);
-        bSave.addEventListener('click', ()=>{ confirmBox.remove(); doClose(true); });
-        bDiscard.addEventListener('click', ()=>{ confirmBox.remove(); doClose(false); });
-        bCancel.addEventListener('click', ()=>{ confirmBox.remove(); });
-        return;
-      }
-      doClose(true);
+    const isSystem = ['default', 'manhwa'].includes(activeId);
+    
+    if (!isSystem) {
+        btnGroup.appendChild(createMiniBtn('✏️', 'Rename Profile', async () => {
+            const currentName = profiles.find(p => p.id === activeId).name;
+            const newName = prompt('Rename profile:', currentName);
+            if (newName && newName !== currentName) {
+                await renameProfile(activeId, newName);
+                location.reload();
+            }
+        }));
     }
 
-    closeBtn.addEventListener('click', ()=> closePanel());
-    saveBtn.addEventListener('click', ()=> { saveSettings(); clearDirty(); doClose(true); });
-    backdrop.addEventListener('click', ()=> closePanel());
+    // --- Reset ---
+    btnGroup.appendChild(createMiniBtn('↺', 'Reset Profile to Defaults', async () => {
+        if(confirm(`Reset "${profiles.find(p=>p.id===activeId).name}" to factory defaults?`)) {
+            await resetProfile(activeId);
+            location.reload();
+        }
+    }, 'danger'));
 
-    function onKey(e){ if(e.key === 'Escape') closePanel(); }
-    window.addEventListener('keydown', onKey);
+    // --- Delete ---
+    const delBtn = createMiniBtn('🗑️', 'Delete Profile', async () => {
+        if(confirm('Delete this profile permanently?')) {
+            await deleteProfile(activeId);
+            location.reload();
+        }
+    }, 'danger');
+    if (isSystem) delBtn.disabled = true;
+    if (isSystem) delBtn.style.opacity = '0.5';
+    
+    btnGroup.appendChild(delBtn);
+    controls.appendChild(btnGroup);
 
-    // Append and animate
-    document.body.appendChild(backdrop); document.body.appendChild(panel);
-    requestAnimationFrame(()=>{ backdrop.style.opacity='1'; panel.style.transform = 'translateX(0)'; });
+    container.appendChild(controls);
+}
 
-    // Load existing settings
-    loadSettings();
+// --- Component Renderers ---
 
-    // Scope change handling and add-scope button
-    const scopeSelectEl = document.getElementById('rule_scope');
-    scopeSelectEl.addEventListener('change', (e)=>{
-      const newScope = scopeSelectEl.value;
-      if (newScope === previousScope) return;
-      const ok = confirm(`Switch rule scope to "${newScope}"?`);
-      if (!ok) { scopeSelectEl.value = previousScope; return; }
-      previousScope = newScope;
-      loadSettings();
+async function renderTextCleaningConfig(container, scope) {
+    if (scope !== 'global') return; 
+
+    const h3 = document.createElement('h3'); h3.textContent = 'Text Cleaning Pipeline'; Object.assign(h3.style, { fontSize: '18px', borderBottom: '1px solid #4b5563', paddingBottom: '8px' });
+    container.appendChild(h3);
+
+    const settings = await getSettings([
+        'clean_noise', 'noise_aggression', 'clean_normalize', 
+        'clean_dict', 'dict_strength', 'dict_ignore_caps', 'manhwa_mode'
+    ]);
+
+    const opts = [
+        { key: 'clean_noise', label: 'Noise Cleaning (Remove Artifacts)', default: true },
+        { key: 'clean_normalize', label: 'Normalize Whitespace (Fix spaces)', default: true },
+        { key: 'clean_dict', label: 'Dictionary Correction (Levenshtein)', default: false },
+        { key: 'dict_ignore_caps', label: 'Dictionary: Ignore ALL CAPS', default: true },
+        { key: 'manhwa_mode', label: 'Manhwa Mode (Vertical Text Fixes)', default: false },
+    ];
+
+    opts.forEach(opt => {
+         container.appendChild(createToggle(opt.label, settings[opt.key] !== undefined ? settings[opt.key] : opt.default, async (val) => await saveSettings({ [opt.key]: val })));
     });
 
-    addScopeBtn.addEventListener('click', ()=>{
-      const origin = window.location && window.location.origin ? window.location.origin : (window.location && window.location.href ? window.location.href : 'current');
-      const val = `site:${origin}`;
-      // add option if missing
-      if (!Array.from(scopeSelectEl.options).some(o=>o.value === val)) {
-        const opt = document.createElement('option'); opt.value = val; opt.textContent = origin; scopeSelectEl.appendChild(opt);
-      }
-      // switch to the new scope
-      scopeSelectEl.value = val;
-      previousScope = val;
-      // initialize empty rules for this site if not present
-      try { if(!localStorage.getItem(scopeKeyRules(val))) { localStorage.setItem(scopeKeyRules(val), JSON.stringify([])); } if(!localStorage.getItem(scopeKeyDeletes(val))) { localStorage.setItem(scopeKeyDeletes(val), JSON.stringify([])); } } catch(e) {}
-      window.manhwaRules = []; window.manhwaDeleteChars = [];
-      renderReplaceList(); renderDeleteList(); saveSettings();
+    // Dropdowns / Extras
+    const noiseRow = document.createElement('div');
+    Object.assign(noiseRow.style, { display: 'flex', alignItems: 'center', justifyContent:'space-between', background: '#1f2937', padding: '8px', borderRadius: '6px', marginTop: '8px' });
+    noiseRow.innerHTML = '<span style="font-size:14px">Noise Aggression</span>';
+    const noiseSel = document.createElement('select'); Object.assign(noiseSel.style, { background: '#374151', color: 'white', border: 'none', padding: '4px' });
+    ['low', 'medium', 'high'].forEach(v => { const o = document.createElement('option'); o.value=v; o.textContent=v; noiseSel.appendChild(o); });
+    noiseSel.value = settings.noise_aggression || 'medium';
+    noiseSel.onchange = async () => await saveSettings({ noise_aggression: noiseSel.value });
+    noiseRow.appendChild(noiseSel);
+    container.appendChild(noiseRow);
+    
+    const dictRow = document.createElement('div');
+    Object.assign(dictRow.style, { display: 'flex', alignItems: 'center', justifyContent:'space-between', background: '#1f2937', padding: '8px', borderRadius: '6px', marginTop: '8px' });
+    dictRow.innerHTML = '<span style="font-size:14px">Dict Strength (Distance)</span>';
+    const dictSel = document.createElement('select'); Object.assign(dictSel.style, { background: '#374151', color: 'white', border: 'none', padding: '4px' });
+    ['1', '2', '3'].forEach(v => { const o = document.createElement('option'); o.value=v; o.textContent=v; dictSel.appendChild(o); });
+    dictSel.value = settings.dict_strength || 1;
+    dictSel.onchange = async () => await saveSettings({ dict_strength: parseInt(dictSel.value) });
+    dictRow.appendChild(dictSel);
+    container.appendChild(dictRow);
+}
+
+async function renderReconstructionConfig(container, scope) {
+    if (scope !== 'global') return;
+
+    const h3 = document.createElement('h3'); h3.textContent = 'Text Reconstruction'; Object.assign(h3.style, { fontSize: '18px', borderBottom: '1px solid #4b5563', paddingBottom: '8px' });
+    container.appendChild(h3);
+
+    const settings = await getSettings(['reconstruct_text', 'reconstruct_merge', 'reconstruct_stabilize']);
+
+    // Master switch
+    container.appendChild(createToggle('Enable Reconstruction', settings.reconstruct_text === true, async (val) => await saveSettings({ reconstruct_text: val })));
+    
+    // Sub switches
+    const subContainer = document.createElement('div');
+    subContainer.style.marginLeft = '20px';
+    subContainer.style.marginTop = '8px';
+    
+    subContainer.appendChild(createToggle('Merge Broken Lines', settings.reconstruct_merge !== false, async (val) => await saveSettings({ reconstruct_merge: val })));
+    subContainer.appendChild(createToggle('Stabilize Sentences', settings.reconstruct_stabilize !== false, async (val) => await saveSettings({ reconstruct_stabilize: val })));
+    
+    container.appendChild(subContainer);
+}
+
+async function renderPipelineConfig(container) {
+    const h3 = document.createElement('h3'); h3.textContent = 'Image Preprocessing'; Object.assign(h3.style, { fontSize: '18px', borderBottom: '1px solid #4b5563', paddingBottom: '8px' });
+    container.appendChild(h3);
+    
+    const settings = await getSettings([
+        'preprocess_resize', 'preprocess_grayscale', 'preprocess_contrast', 
+        'preprocess_blur', 'preprocess_threshold', 'preprocess_morphology', 'preprocess_borders'
+    ]);
+
+    const opts = [
+        { key: 'preprocess_resize', label: 'Resize Image (2x)', default: true },
+        { key: 'preprocess_grayscale', label: 'Grayscale', default: true },
+        { key: 'preprocess_contrast', label: 'Enhance Contrast', default: true },
+        { key: 'preprocess_blur', label: 'Median Blur', default: false },
+        { key: 'preprocess_threshold', label: 'Adaptive Threshold', default: false },
+        { key: 'preprocess_morphology', label: 'Morphology (Clean)', default: false },
+    ];
+
+    opts.forEach(opt => {
+        container.appendChild(createToggle(opt.label, settings[opt.key] !== undefined ? settings[opt.key] : opt.default, async (val) => await saveSettings({ [opt.key]: val })));
+    });
+}
+
+async function renderUIConfig(container) {
+    const h3 = document.createElement('h3'); h3.textContent = 'UI Settings'; Object.assign(h3.style, { fontSize: '18px', borderBottom: '1px solid #4b5563', paddingBottom: '8px' });
+    container.appendChild(h3);
+    
+    // --- Floating Button Controls ---
+    const settings = await getSettings([
+        'floating_button_enabled', 'floating_button_mode',
+        'floating_button_blacklist', 'floating_button_whitelist', 
+        'debug_mode'
+    ]);
+    
+    // 1. Master Toggle
+    container.appendChild(createToggle('Show Floating Button', settings.floating_button_enabled !== false, async (val) => await saveSettings({ floating_button_enabled: val })));
+
+    // 2. Mode Selector and Lists
+    // Only show if enabled
+    const subConfig = document.createElement('div');
+    subConfig.style.marginLeft = '20px';
+    subConfig.style.marginBottom = '20px';
+    subConfig.style.display = (settings.floating_button_enabled !== false) ? 'block' : 'none';
+
+    // Mode Toggle
+    const modeRow = document.createElement('div');
+    Object.assign(modeRow.style, { display: 'flex', alignItems: 'center', marginBottom: '10px', gap: '10px' });
+    modeRow.innerHTML = `<span style="font-size:14px; color:#d1d5db">Filter Mode:</span>`;
+    
+    const modeSel = document.createElement('select');
+    Object.assign(modeSel.style, { padding: '4px 8px', borderRadius: '4px', background: '#374151', color: 'white', border: 'none' });
+    const mOpt1 = document.createElement('option'); mOpt1.value = 'blacklist'; mOpt1.textContent = 'Show Everywhere (Excluded Sites)';
+    const mOpt2 = document.createElement('option'); mOpt2.value = 'whitelist'; mOpt2.textContent = 'Hide Everywhere (Allowed Sites)';
+    modeSel.appendChild(mOpt1); modeSel.appendChild(mOpt2);
+    modeSel.value = settings.floating_button_mode || 'blacklist';
+    
+    modeSel.onchange = async () => {
+        await saveSettings({ floating_button_mode: modeSel.value });
+        renderListEditor(modeSel.value);
+    };
+    modeRow.appendChild(modeSel);
+    subConfig.appendChild(modeRow);
+
+    // List Editor Container
+    const listContainer = document.createElement('div');
+    subConfig.appendChild(listContainer);
+    
+    const renderListEditor = async (mode) => {
+        listContainer.innerHTML = '';
+        const currentList = await getSettings(mode === 'blacklist' ? ['floating_button_blacklist'] : ['floating_button_whitelist']);
+        const items = currentList[mode === 'blacklist' ? 'floating_button_blacklist' : 'floating_button_whitelist'] || [];
+
+        const info = document.createElement('p');
+        info.style.fontSize = '12px'; info.style.color = '#9ca3af'; info.style.marginBottom = '8px';
+        info.textContent = mode === 'blacklist' 
+            ? 'Button will NOT appear on these URLs (one per line):'
+            : 'Button WILL appear ONLY on these URLs (one per line):';
+        listContainer.appendChild(info);
+
+        const textarea = document.createElement('textarea');
+        textarea.rows = 5;
+        Object.assign(textarea.style, { 
+            width: '100%', background: '#0b1220', color: '#e6eef8', 
+            border: '1px solid #25303a', borderRadius: '4px', padding: '8px', 
+            fontFamily: 'monospace', boxSizing: 'border-box' 
+        });
+        textarea.value = items.join('\n');
+        
+        textarea.onchange = async () => {
+            const raw = textarea.value.split('\n').map(s => s.trim()).filter(s => s);
+            const key = mode === 'blacklist' ? 'floating_button_blacklist' : 'floating_button_whitelist';
+            await saveSettings({ [key]: raw });
+        };
+        listContainer.appendChild(textarea);
+    };
+
+    // Initial fill
+    await renderListEditor(settings.floating_button_mode || 'blacklist');
+    container.appendChild(subConfig);
+
+    // 3. Simple toggles
+    container.appendChild(createToggle('Debug Mode', settings.debug_mode === true, async (val) => await saveSettings({ debug_mode: val })));
+    
+    // Manage listener for disable
+    // Re-render UIConfig part if master toggle changes? 
+    // Just toggle visibility for simplicity
+    const masterCheck = container.querySelector('input[type="checkbox"]'); // First one is floating button
+    if(masterCheck) {
+        // Need to hook deeply, but createToggle is simple. 
+        // We can add a re-render hook or just manual display toggle.
+        const originalOnChange = masterCheck.onchange;
+        masterCheck.onchange = (e) => {
+             subConfig.style.display = e.target.checked ? 'block' : 'none';
+             if(originalOnChange) originalOnChange(e);
+        };
+    }
+}
+
+function renderReplacementsSection(container, replacements, scope) {
+    // 1. Simple Add Form (Top)
+    const form = document.createElement('div');
+    form.style.display = 'flex'; form.style.flexDirection = 'column'; form.style.gap = '8px';
+    
+    // Inputs
+    const inputsRow = document.createElement('div'); 
+    inputsRow.style.display = 'flex'; inputsRow.style.gap = '12px'; inputsRow.style.alignItems = 'center'; 
+    inputsRow.style.flexWrap = 'wrap'; inputsRow.style.margin = '0 auto';
+    
+    const findInput = document.createElement('input'); 
+    findInput.placeholder = 'Character to Find';
+    Object.assign(findInput.style, {
+        width: '150px', padding: '8px', borderRadius: '6px', 
+        background: '#0b1220', color: '#e6eef8', border: '1px solid #25303a'
+    });
+    
+    const replaceInput = document.createElement('input'); 
+    replaceInput.placeholder = 'Replace With';
+    Object.assign(replaceInput.style, {
+        width: '150px', padding: '8px', borderRadius: '6px', 
+        background: '#0b1220', color: '#e6eef8', border: '1px solid #25303a'
+    });
+    
+    const arrow = document.createElement('div'); 
+    arrow.textContent = '→'; 
+    arrow.style.color = '#9ca3af'; arrow.style.fontSize = '18px'; 
+    arrow.style.display = 'flex'; arrow.style.alignItems = 'center'; arrow.style.padding = '0 4px';
+    
+    inputsRow.appendChild(findInput); 
+    inputsRow.appendChild(arrow); 
+    inputsRow.appendChild(replaceInput);
+    
+    // Advanced Toggles (Compact)
+    const togglesRow = document.createElement('div');
+    togglesRow.style.display = 'flex'; togglesRow.style.gap = '10px'; togglesRow.style.justifyContent = 'center'; togglesRow.style.fontSize = '12px';
+    togglesRow.innerHTML = `
+        <label style="color:#d1d5db; display:flex; gap:4px; align-items:center; cursor:pointer"><input type="checkbox" id="adv_rgx"> Regex</label>
+        <label style="color:#d1d5db; display:flex; gap:4px; align-items:center; cursor:pointer"><input type="checkbox" id="adv_case"> Case</label>
+        <label style="color:#d1d5db; display:flex; gap:4px; align-items:center; cursor:pointer"><input type="checkbox" id="adv_word"> Word</label>
+    `;
+
+    const addRuleBtn = document.createElement('button'); 
+    addRuleBtn.textContent = 'Add';
+    Object.assign(addRuleBtn.style, {
+        padding: '8px 10px', borderRadius: '6px', border: 'none', 
+        background: '#4f46e5', color: '#fff', cursor: 'pointer', width: '72px', alignSelf: 'center'
     });
 
-    deleteScopeBtn.addEventListener('click', ()=>{
-      const scope = scopeSelectEl.value || 'global';
-      if(scope === 'global') { alert('Cannot delete the Global scope.'); return; }
-      const ok = confirm(`Delete rules for scope "${scope}"? This will remove saved rules for this site.`);
-      if(!ok) return;
-      try{
-        localStorage.removeItem(scopeKeyRules(scope));
-        localStorage.removeItem(scopeKeyDeletes(scope));
-      }catch(e){}
-      // remove option from select
-      const opt = Array.from(scopeSelectEl.options).find(o=>o.value===scope);
-      if(opt) opt.remove();
-      // switch back to global
-      scopeSelectEl.value = 'global'; previousScope = 'global'; loadSettings();
-      alert('Scope deleted');
-    });
+    form.appendChild(inputsRow);
+    form.appendChild(togglesRow);
+    form.appendChild(addRuleBtn);
+    container.appendChild(form);
 
-    // Add rule handlers
-    addRuleBtn.addEventListener('click', ()=>{
-      const f = (findInput.value || '').trim();
-      const r = (replaceInput.value || '').trim();
-      if(!f || !r) {
-        errorMsg.textContent = 'Both fields are required';
-        errorMsg.style.display = 'block';
-        return;
-      }
-      errorMsg.style.display = 'none';
-      window.manhwaRules.push({ find: f, replace: r });
-      findInput.value = ''; replaceInput.value = '';
-      renderReplaceList();
-      if (autoSaveChk && autoSaveChk.checked) saveSettings(); else markDirty();
-    });
+    // 2. List
+    const list = document.createElement('div'); 
+    list.style.marginTop = '12px'; 
+    list.style.display = 'grid'; 
+    list.style.gridTemplateColumns = '1fr 1fr'; // Grid layout from reference
+    list.style.gap = '8px';
+    
+    // Re-render helper
+    const renderItems = () => {
+        list.innerHTML = '';
+        replacements.forEach((rule, idx) => {
+            const item = document.createElement('div');
+            Object.assign(item.style, {
+                display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+                padding: '6px 8px', background: '#071022', borderRadius: '8px', minHeight: '36px', boxSizing: 'border-box'
+            });
 
-    // Enter key triggers add; Esc handled globally
-    [findInput, replaceInput].forEach(inp=>{
-      inp.addEventListener('keydown', (e)=>{
-        if (e.key === 'Enter') { e.preventDefault(); addRuleBtn.click(); }
-      });
-    });
+            // Reordering controls (Mini)
+            const controls = document.createElement('div');
+            controls.style.display='flex'; controls.style.flexDirection='column'; controls.style.gap='2px'; controls.style.marginRight='6px';
+            const up = document.createElement('button'); up.textContent='▲'; up.onclick = () => moveRule(idx, idx-1);
+            const down = document.createElement('button'); down.textContent='▼'; down.onclick = () => moveRule(idx, idx+1);
+            [up, down].forEach(b => {
+                 Object.assign(b.style, { fontSize:'8px', padding:'0', background:'transparent', border:'none', color:'#6b7280', cursor:'pointer' });
+            });
+            if(idx > 0) controls.appendChild(up);
+            if(idx < replacements.length-1) controls.appendChild(down);
+            item.appendChild(controls);
 
-    addDeleteBtn.addEventListener('click', ()=>{
-      const ch = (deleteInput.value || '').trim();
-      if(!ch) { alert('Enter a character to delete'); return; }
-      // allow multi-char but store as string entries
-      window.manhwaDeleteChars.push(ch);
-      deleteInput.value = '';
-      renderDeleteList();
-      if (autoSaveChk && autoSaveChk.checked) saveSettings(); else markDirty();
-    });
+            // Label
+            const label = document.createElement('div');
+            // Show flags
+            const flags = [];
+            if(rule.isRegex) flags.push('R');
+            if(rule.caseSensitive) flags.push('C');
+            if(rule.wholeWord) flags.push('W');
+            const flagStr = flags.length ? `<sup style="color:#f59e0b; margin-left:2px">${flags.join('')}</sup>` : '';
 
-  }
+            label.innerHTML = `<span style="color:#e6eef8">${rule.find}</span> <span style="color:#6b7280">→</span> <span style="color:#a5f3fc">${rule.replace}</span> ${flagStr}`;
+            Object.assign(label.style, {
+                fontSize: '13px', flex: '1', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', userSelect:'none'
+            });
+            // Toggle enabled on click text
+            label.style.cursor = 'pointer';
+            label.style.opacity = (rule.enabled !== false) ? '1' : '0.5';
+            label.onclick = async () => {
+                replacements[idx].enabled = !(replacements[idx].enabled !== false);
+                await saveReplacements(scope, replacements);
+                renderItems();
+            };
+            item.appendChild(label);
+
+            const del = document.createElement('button'); 
+            del.textContent='✕';
+            Object.assign(del.style, {
+                padding: '4px', borderRadius: '4px', border: 'none', background: '#ef4444', 
+                color: '#fff', cursor: 'pointer', marginLeft: '8px', fontSize:'12px', width:'24px', height:'24px', display:'flex', alignItems:'center', justifyContent:'center'
+            });
+            del.onclick = async (e) => {
+                e.preventDefault();
+                replacements.splice(idx, 1);
+                await saveReplacements(scope, replacements);
+                renderItems();
+            };
+            item.appendChild(del);
+            
+            list.appendChild(item);
+        });
+    };
+
+    const moveRule = async (from, to) => {
+         if(to < 0 || to >= replacements.length) return;
+         const x = replacements.splice(from, 1)[0];
+         replacements.splice(to, 0, x);
+         await saveReplacements(scope, replacements);
+         renderItems();
+    };
+
+    renderItems();
+    container.appendChild(list);
+
+    // Bind Add
+    addRuleBtn.onclick = async () => {
+        const f = findInput.value;
+        const r = replaceInput.value;
+        if (!f) return;
+        const rule = {
+            find: f, replace: r,
+            isRegex: document.getElementById('adv_rgx').checked,
+            caseSensitive: document.getElementById('adv_case').checked,
+            wholeWord: document.getElementById('adv_word').checked,
+            enabled: true
+        };
+        replacements.push(rule);
+        await saveReplacements(scope, replacements);
+        renderItems();
+        findInput.value = ''; replaceInput.value = '';
+    };
+}
+
+function renderDeletionsSection(container, deletions, scope) {
+    const title = document.createElement('h4'); 
+    title.textContent = 'Characters to Delete'; 
+    title.style.margin = '12px 0 6px 0'; title.style.fontSize = '15px';
+    container.appendChild(title);
+    
+    const desc = document.createElement('div'); 
+    desc.textContent = 'These characters will be removed from the OCR text'; 
+    desc.style.color = '#9ca3af'; desc.style.fontSize = '13px';
+    container.appendChild(desc);
+
+    const row = document.createElement('div'); 
+    row.style.display = 'flex'; row.style.gap = '8px'; row.style.alignItems = 'center'; row.style.marginTop = '8px';
+    
+    const input = document.createElement('input'); 
+    input.placeholder = 'Character to Delete';
+    Object.assign(input.style, {
+        flex: '1', padding: '8px', borderRadius: '6px', 
+        background: '#0b1220', color: '#e6eef8', border: '1px solid #25303a'
+    });
+    
+    const addBtn = document.createElement('button'); 
+    addBtn.textContent = 'Add';
+    Object.assign(addBtn.style, {
+        padding: '8px 10px', borderRadius: '6px', border: 'none', 
+        background: '#4f46e5', color: '#fff', cursor: 'pointer', width: '72px', flex: '0 0 auto'
+    });
+    
+    row.appendChild(input);
+    row.appendChild(addBtn);
+    container.appendChild(row);
+
+    // Options for Context (Mini checkboxes below input)
+    const ctxRow = document.createElement('div');
+    ctxRow.style.display='flex'; ctxRow.style.gap='10px'; ctxRow.style.marginTop='6px'; ctxRow.style.fontSize='11px'; ctxRow.style.color='#9ca3af';
+    ctxRow.innerHTML = `
+        <span>Safe if between: </span>
+        <label style="display:flex;gap:4px;cursor:pointer"><input type="checkbox" id="del_let">Letters</label>
+        <label style="display:flex;gap:4px;cursor:pointer"><input type="checkbox" id="del_num">Numbers</label>
+        <label style="display:flex;gap:4px;cursor:pointer"><input type="checkbox" id="del_wrd">Inside Words</label>
+    `;
+    container.appendChild(ctxRow);
+
+    const list = document.createElement('div'); 
+    list.style.marginTop = '8px'; list.style.display = 'flex'; list.style.flexWrap = 'wrap'; list.style.gap = '6px';
+    
+    const renderItems = () => {
+        list.innerHTML = '';
+        deletions.forEach((rule, idx) => {
+             const char = typeof rule === 'string' ? rule : rule.char;
+             
+             const chip = document.createElement('div');
+             Object.assign(chip.style, {
+                 display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 8px',
+                 background: '#07202a', color: '#e6eef8', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.03)'
+             });
+
+             let txt = char;
+             if (typeof rule !== 'string' && (rule.ignoreBetweenLetters || rule.ignoreBetweenNumbers || rule.ignoreInsideWords)) {
+                 txt += '*'; // Indicator for context rules
+             }
+
+             const span = document.createElement('span'); 
+             span.textContent = txt; span.style.fontSize = '13px'; span.style.marginRight = '4px';
+             if (txt.endsWith('*')) span.title = "Has context protection rules";
+             
+             const del = document.createElement('button'); 
+             del.textContent='✕';
+             Object.assign(del.style, {
+                 padding: '2px 4px', borderRadius: '4px', border: 'none', background: '#ef4444', color: '#fff', cursor: 'pointer', fontSize:'10px'
+             });
+             del.onclick = async () => {
+                 deletions.splice(idx, 1);
+                 await saveDeletions(scope, deletions);
+                 renderItems();
+             };
+             
+             chip.appendChild(span);
+             chip.appendChild(del);
+             list.appendChild(chip);
+        });
+    };
+    renderItems();
+    container.appendChild(list);
+
+    addBtn.onclick = async () => {
+        const c = input.value;
+        if (!c) return;
+        
+        const l = document.getElementById('del_let').checked;
+        const n = document.getElementById('del_num').checked;
+        const w = document.getElementById('del_wrd').checked;
+        
+        const rule = { 
+            char: c, 
+            ignoreBetweenLetters: l, 
+            ignoreBetweenNumbers: n,
+            ignoreInsideWords: w
+        };
+        
+        deletions.push(rule);
+        await saveDeletions(scope, deletions);
+        renderItems();
+        input.value = '';
+    };
+}
+
+// Helpers
+function createToggle(label, checked, onChange) {
+    const row = document.createElement('label');
+    Object.assign(row.style, { display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', background: '#1f2937', padding: '8px', borderRadius: '6px', marginBottom: '8px' });
+    
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.checked = checked;
+    input.onchange = (e) => onChange(e.target.checked);
+    
+    row.appendChild(input);
+    row.appendChild(document.createTextNode(label));
+    return row;
+}
+
+function createCheckbox(label) {
+    const l = document.createElement('label');
+    Object.assign(l.style, { fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' });
+    const i = document.createElement('input'); i.type = 'checkbox';
+    l.appendChild(i); l.appendChild(document.createTextNode(label));
+    return l;
+}
+
+async function saveDeletions(scope, deletions) {
+    if (scope === 'global') {
+        await saveSettings({ user_deletions: deletions });
+    } else {
+        // Site specific rules are stored in root storage, not profile
+        const key = `user_deletions_${scope}`;
+        await browser.storage.local.set({ [key]: deletions });
+    }
+}
+
+async function saveReplacements(scope, replacements) {
+    if (scope === 'global') {
+        await saveSettings({ user_replacements: replacements });
+    } else {
+        // Site specific rules are stored in root storage, not profile
+        const key = `user_replacements_${scope}`;
+        await browser.storage.local.set({ [key]: replacements });
+    }
+}

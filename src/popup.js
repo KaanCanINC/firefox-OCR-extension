@@ -12,6 +12,7 @@ import { createManhwaModeButton } from './buttons/manhwaMode.js';
 import { createCopyButton } from './buttons/copy.js';
 import { createCloseButton } from './buttons/close.js';
 import { createSettingsButton } from './buttons/settings.js';
+import { getSettings } from './utils/settingsManager.js';
 
 export function showPopup(state, text) {
   console.log("Showing popup with state:", state, "text:", text);
@@ -95,6 +96,15 @@ export function showPopup(state, text) {
   textarea.style.fontFamily = "Inter, sans-serif";
   textarea.style.minHeight = "32px";
   textarea.style.maxHeight = "200px";
+  
+  // Prevent arrow keys from propagating to the page (Manhwa reader compatibility)
+  textarea.addEventListener('keydown', (e) => {
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'PageUp', 'PageDown'].includes(e.code)) {
+          e.stopPropagation();
+          // We don't preventDefault, so the cursor moves in textarea.
+      }
+  });
+  
   textareaWrap.appendChild(textarea);
 
   // Controls above textarea: language (left) and settings (right)
@@ -157,6 +167,16 @@ export function showPopup(state, text) {
   const copyBtn = createCopyButton(textarea, copyToClipboard);
   buttonContainer.appendChild(copyBtn);
 
+  // Apply visibility settings
+  getSettings(['popup_hidden_buttons']).then(settings => {
+      const hidden = settings.popup_hidden_buttons || [];
+      if (hidden.includes('Lowercase')) lowerBtn.style.display = 'none';
+      if (hidden.includes('Uppercase')) upperBtn.style.display = 'none';
+      if (hidden.includes('Single Line')) singleBtn.style.display = 'none';
+      if (hidden.includes('Manhwa Mode')) manhwaBtn.style.display = 'none';
+      if (hidden.includes('Copy')) copyBtn.style.display = 'none';
+  });
+
   const closeBtn = createCloseButton(popup);
   buttonContainer.appendChild(closeBtn);
 
@@ -211,7 +231,7 @@ export function showPopup(state, text) {
   return popup;
 }
 
-export function updatePopup(popup, text) {
+export function updatePopup(popup, text, originalText) {
   if (popup.intervalId) {
     clearInterval(popup.intervalId);
     const progressBar = popup.querySelector(
@@ -224,10 +244,99 @@ export function updatePopup(popup, text) {
   const progressContainer = popup.querySelector(".progress-container");
   const footer = popup.querySelector(".popup-footer");
 
+  // Save texts on the popup element for reference
+  popup.dataset.finalText = text;
+  popup.dataset.originalText = originalText || text;
+
   if (textarea) textarea.value = text;
   if (progressContainer) progressContainer.style.display = "none";
   if (textarea) textarea.style.display = "block";
   if (footer) footer.style.display = "flex";
+
+  // Add Diff View Toggle
+  const controls = popup.querySelector('div[style*="justify-content: space-between"]');
+  if (controls && !popup.querySelector('#btn-diff')) {
+     const diffBtn = document.createElement('button');
+     diffBtn.id = 'btn-diff';
+     diffBtn.textContent = 'Original';
+     diffBtn.title = 'Show Original Text for Restoration';
+     Object.assign(diffBtn.style, {
+         border: '1px solid #374151', background: '#1f2937', color: '#9ca3af',
+         borderRadius: '6px', padding: '6px 10px', fontSize: '12px', cursor: 'pointer', marginLeft: 'auto', marginRight: '8px'
+     });
+     
+     // Insert before settings button
+     const settingsBtn = controls.lastElementChild;
+     controls.insertBefore(diffBtn, settingsBtn);
+
+     let diffMode = false;
+     const originalContainer = document.createElement('div');
+     originalContainer.style.display = 'none'; // Hidden by default
+     originalContainer.style.marginBottom = '10px';
+     originalContainer.style.padding = '8px';
+     originalContainer.style.background = '#111827';
+     originalContainer.style.border = '1px dashed #6366f1';
+     originalContainer.style.borderRadius = '6px';
+     originalContainer.style.fontSize = '12px';
+     originalContainer.style.color = '#9ca3af';
+     originalContainer.style.maxHeight = '80px';
+     originalContainer.style.overflowY = 'auto';
+     
+     // Insert container before textarea
+     textarea.parentElement.insertBefore(originalContainer, textarea);
+
+     diffBtn.addEventListener('click', () => {
+         diffMode = !diffMode;
+         if (diffMode) {
+             diffBtn.style.background = '#4f46e5';
+             diffBtn.style.color = '#fff';
+             
+             // Populate Original Text View
+             originalContainer.innerHTML = '';
+             originalContainer.style.display = 'block';
+             
+             const raw = popup.dataset.originalText || '';
+             // Tokenize by spaces/newlines to make clicking easier
+             // Simple split?
+             const parts = raw.split(/(\s+)/); // Keep delimiters
+             
+             parts.forEach(part => {
+                 const span = document.createElement('span');
+                 span.textContent = part;
+                 if (part.trim().length > 0) {
+                     span.style.cursor = 'pointer';
+                     span.style.borderBottom = '1px dotted #6366f1';
+                     span.title = 'Click to insert into text';
+                     span.onmouseover = () => span.style.color = 'white';
+                     span.onmouseout = () => span.style.color = '#9ca3af';
+                     
+                     span.onclick = () => {
+                         // Insert text at cursor pos in textarea
+                         const start = textarea.selectionStart;
+                         const end = textarea.selectionEnd;
+                         const val = textarea.value;
+                         const before = val.substring(0, start);
+                         const after = val.substring(end);
+                         
+                         textarea.value = before + part + after;
+                         textarea.selectionStart = textarea.selectionEnd = start + part.length;
+                         textarea.focus();
+                     };
+                 }
+                 originalContainer.appendChild(span);
+             });
+
+             // Shrink textarea slightly?
+             textarea.style.height = '80px';
+
+         } else {
+             diffBtn.style.background = '#1f2937';
+             diffBtn.style.color = '#9ca3af';
+             originalContainer.style.display = 'none';
+             textarea.style.height = '120px';
+         }
+     });
+  }
 }
 
 async function copyToClipboard(text) {
